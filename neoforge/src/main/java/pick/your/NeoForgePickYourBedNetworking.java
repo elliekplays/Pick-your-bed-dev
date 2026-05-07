@@ -14,6 +14,8 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+import java.util.function.Consumer;
+
 public final class NeoForgePickYourBedNetworking {
     private NeoForgePickYourBedNetworking() {
     }
@@ -21,42 +23,51 @@ public final class NeoForgePickYourBedNetworking {
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
 
-        registrar.playToServer(BedListRequestPayload.TYPE, BedListRequestPayload.STREAM_CODEC, (payload, context) -> {
-            if (context.player() instanceof ServerPlayer player) {
-                PickYourBedServer.handleListRequest(player);
-            }
-        });
-        registrar.playToServer(RenameRespawnPayload.TYPE, RenameRespawnPayload.STREAM_CODEC, (payload, context) -> {
-            if (context.player() instanceof ServerPlayer player) {
-                PickYourBedServer.handleRename(player, payload.id(), payload.name());
-            }
-        });
-        registrar.playToServer(SelectRespawnPayload.TYPE, SelectRespawnPayload.STREAM_CODEC, (payload, context) -> {
-            if (context.player() instanceof ServerPlayer player) {
-                PickYourBedServer.handleSelect(player, payload.id());
-            }
-        });
+        registrar.playToServer(BedListRequestPayload.TYPE, BedListRequestPayload.STREAM_CODEC,
+            (payload, context) -> handleServer(context, "list request", PickYourBedServer::handleListRequest));
+        registrar.playToServer(RenameRespawnPayload.TYPE, RenameRespawnPayload.STREAM_CODEC,
+            (payload, context) -> handleServer(context, "rename", player -> PickYourBedServer.handleRename(player, payload.id(), payload.name())));
+        registrar.playToServer(SelectRespawnPayload.TYPE, SelectRespawnPayload.STREAM_CODEC,
+            (payload, context) -> handleServer(context, "select", player -> PickYourBedServer.handleSelect(player, payload.id())));
 
         registrar.playToClient(BedListPayload.TYPE, BedListPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleList);
         registrar.playToClient(OpenEditorPayload.TYPE, OpenEditorPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleOpenEditor);
         registrar.playToClient(SelectionResultPayload.TYPE, SelectionResultPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleSelectionResult);
     }
 
+    private static void handleServer(IPayloadContext context, String action, Consumer<ServerPlayer> handler) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                try {
+                    handler.accept(player);
+                } catch (RuntimeException exception) {
+                    Constants.LOG.error("Failed to handle {} packet on the server", action, exception);
+                }
+            }
+        });
+    }
+
     private static void handleList(BedListPayload payload, IPayloadContext context) {
-        if (FMLEnvironment.dist.isClient()) {
-            PickYourBedClient.handleList(payload);
-        }
+        handleClient(context, "list", () -> PickYourBedClient.handleList(payload));
     }
 
     private static void handleOpenEditor(OpenEditorPayload payload, IPayloadContext context) {
-        if (FMLEnvironment.dist.isClient()) {
-            PickYourBedClient.handleOpenEditor(payload);
-        }
+        handleClient(context, "open editor", () -> PickYourBedClient.handleOpenEditor(payload));
     }
 
     private static void handleSelectionResult(SelectionResultPayload payload, IPayloadContext context) {
-        if (FMLEnvironment.dist.isClient()) {
-            PickYourBedClient.handleSelectionResult(payload);
-        }
+        handleClient(context, "selection result", () -> PickYourBedClient.handleSelectionResult(payload));
+    }
+
+    private static void handleClient(IPayloadContext context, String action, Runnable handler) {
+        context.enqueueWork(() -> {
+            if (FMLEnvironment.dist.isClient()) {
+                try {
+                    handler.run();
+                } catch (RuntimeException exception) {
+                    Constants.LOG.error("Failed to handle {} packet on the client", action, exception);
+                }
+            }
+        });
     }
 }

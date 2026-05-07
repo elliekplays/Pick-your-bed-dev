@@ -5,9 +5,10 @@ import pick.your.respawn.RespawnEntryView;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 
 public record OpenEditorPayload(RespawnEntryView entry) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<OpenEditorPayload> TYPE = CustomPacketPayload.createType(Constants.MOD_ID + ":open_editor");
+    public static final CustomPacketPayload.Type<OpenEditorPayload> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "open_editor"));
     public static final StreamCodec<FriendlyByteBuf, OpenEditorPayload> STREAM_CODEC = CustomPacketPayload.codec(
         OpenEditorPayload::write,
         OpenEditorPayload::new

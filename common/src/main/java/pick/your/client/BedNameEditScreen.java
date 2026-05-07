@@ -28,7 +28,11 @@ public class BedNameEditScreen extends Screen {
         this.nameBox = new EditBox(this.font, left + 18, top + 48, panelWidth - 36, 20, Component.literal("Name"));
         this.nameBox.setMaxLength(32);
         this.nameBox.setValue(this.entry.name());
-        this.nameBox.setResponder(value -> this.saveButton.active = !value.trim().isEmpty());
+        this.nameBox.setResponder(value -> {
+            if (this.saveButton != null) {
+                this.saveButton.active = !value.trim().isEmpty();
+            }
+        });
         this.addRenderableWidget(this.nameBox);
 
         this.saveButton = this.addRenderableWidget(Button.builder(Component.literal("Save"), button -> this.save())
@@ -68,11 +72,17 @@ public class BedNameEditScreen extends Screen {
     }
 
     private void save() {
+        if (this.nameBox == null) {
+            return;
+        }
+
         PickYourBedClient.rename(this.entry.id(), this.nameBox.getValue());
         this.close();
     }
 
     private void close() {
-        this.minecraft.setScreen(this.parent);
+        if (this.minecraft != null) {
+            this.minecraft.setScreen(this.parent);
+        }
     }
 }

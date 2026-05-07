@@ -1,5 +1,6 @@
 package pick.your.client;
 
+import pick.your.Constants;
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.BedListRequestPayload;
 import pick.your.network.payload.OpenEditorPayload;
@@ -11,6 +12,7 @@ import pick.your.respawn.RespawnEntry;
 import pick.your.respawn.RespawnEntryView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,9 +34,7 @@ public final class PickYourBedClient {
     }
 
     public static void requestEntries() {
-        if (Minecraft.getInstance().getConnection() != null) {
-            Services.PLATFORM.sendToServer(new BedListRequestPayload());
-        }
+        sendToServer("list request", new BedListRequestPayload());
     }
 
     public static void handleList(BedListPayload payload) {
@@ -43,6 +43,10 @@ public final class PickYourBedClient {
 
     public static void handleOpenEditor(OpenEditorPayload payload) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.getConnection() == null) {
+            return;
+        }
+
         mergeEntry(payload.entry());
         minecraft.setScreen(new BedNameEditScreen(minecraft.screen, payload.entry()));
     }
@@ -56,7 +60,7 @@ public final class PickYourBedClient {
                 : entry);
         }
         entries = List.copyOf(next);
-        Services.PLATFORM.sendToServer(new RenameRespawnPayload(id, cleanName));
+        sendToServer("rename", new RenameRespawnPayload(id, cleanName));
     }
 
     public static void selectForRespawn(RespawnEntryView entry) {
@@ -65,7 +69,9 @@ public final class PickYourBedClient {
         }
 
         waitingForSelection = true;
-        Services.PLATFORM.sendToServer(new SelectRespawnPayload(entry.id()));
+        if (!sendToServer("select", new SelectRespawnPayload(entry.id()))) {
+            waitingForSelection = false;
+        }
     }
 
     public static void handleSelectionResult(SelectionResultPayload payload) {
@@ -99,5 +105,19 @@ public final class PickYourBedClient {
         }
         next.add(0, updated);
         entries = List.copyOf(next);
+    }
+
+    private static boolean sendToServer(String action, CustomPacketPayload payload) {
+        if (Minecraft.getInstance().getConnection() == null) {
+            return false;
+        }
+
+        try {
+            Services.PLATFORM.sendToServer(payload);
+            return true;
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to send {} packet to the server", action, exception);
+            return false;
+        }
     }
 }

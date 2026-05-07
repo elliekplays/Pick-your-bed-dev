@@ -9,6 +9,7 @@ import pick.your.network.payload.SelectionResultPayload;
 import pick.your.respawn.PickYourBedServer;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.level.ServerPlayer;
 
 public final class FabricPickYourBedNetworking {
     private FabricPickYourBedNetworking() {
@@ -23,8 +24,27 @@ public final class FabricPickYourBedNetworking {
         PayloadTypeRegistry.playS2C().register(OpenEditorPayload.TYPE, OpenEditorPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(SelectionResultPayload.TYPE, SelectionResultPayload.STREAM_CODEC);
 
-        ServerPlayNetworking.registerGlobalReceiver(BedListRequestPayload.TYPE, (payload, context) -> PickYourBedServer.handleListRequest(context.player()));
-        ServerPlayNetworking.registerGlobalReceiver(RenameRespawnPayload.TYPE, (payload, context) -> PickYourBedServer.handleRename(context.player(), payload.id(), payload.name()));
-        ServerPlayNetworking.registerGlobalReceiver(SelectRespawnPayload.TYPE, (payload, context) -> PickYourBedServer.handleSelect(context.player(), payload.id()));
+        ServerPlayNetworking.registerGlobalReceiver(BedListRequestPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            runOnServer(context, "list request", () -> PickYourBedServer.handleListRequest(player));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(RenameRespawnPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            runOnServer(context, "rename", () -> PickYourBedServer.handleRename(player, payload.id(), payload.name()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(SelectRespawnPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            runOnServer(context, "select", () -> PickYourBedServer.handleSelect(player, payload.id()));
+        });
+    }
+
+    private static void runOnServer(ServerPlayNetworking.Context context, String action, Runnable handler) {
+        context.server().execute(() -> {
+            try {
+                handler.run();
+            } catch (RuntimeException exception) {
+                Constants.LOG.error("Failed to handle {} packet on the server", action, exception);
+            }
+        });
     }
 }

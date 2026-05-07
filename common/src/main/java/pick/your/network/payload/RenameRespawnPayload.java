@@ -4,9 +4,10 @@ import pick.your.Constants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 
 public record RenameRespawnPayload(long id, String name) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<RenameRespawnPayload> TYPE = CustomPacketPayload.createType(Constants.MOD_ID + ":rename");
+    public static final CustomPacketPayload.Type<RenameRespawnPayload> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "rename"));
     public static final StreamCodec<FriendlyByteBuf, RenameRespawnPayload> STREAM_CODEC = CustomPacketPayload.codec(
         RenameRespawnPayload::write,
         RenameRespawnPayload::new

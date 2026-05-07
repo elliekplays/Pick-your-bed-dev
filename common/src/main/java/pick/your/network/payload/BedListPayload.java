@@ -5,12 +5,13 @@ import pick.your.respawn.RespawnEntryView;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public record BedListPayload(List<RespawnEntryView> entries) implements CustomPacketPayload {
-    public static final CustomPacketPayload.Type<BedListPayload> TYPE = CustomPacketPayload.createType(Constants.MOD_ID + ":list");
+    public static final CustomPacketPayload.Type<BedListPayload> TYPE = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "list"));
     public static final StreamCodec<FriendlyByteBuf, BedListPayload> STREAM_CODEC = CustomPacketPayload.codec(
         BedListPayload::write,
         BedListPayload::new

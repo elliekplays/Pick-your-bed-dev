@@ -1,5 +1,6 @@
 package pick.your.respawn;
 
+import pick.your.Constants;
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.SelectionResultPayload;
@@ -7,6 +8,7 @@ import pick.your.platform.Services;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -27,15 +29,32 @@ public final class PickYourBedServer {
     }
 
     public static void recordPlacedRespawn(ServerPlayer player, RespawnEntryType type, BlockPos pos) {
+        try {
+            recordPlacedRespawnUnsafe(player, type, pos);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to record {} respawn at {}", type.serializedName(), pos, exception);
+        }
+    }
+
+    private static void recordPlacedRespawnUnsafe(ServerPlayer player, RespawnEntryType type, BlockPos pos) {
         RespawnSavedData data = RespawnSavedData.get(player.server);
         data.addOrUpdate(player.getUUID(), type, player.level().dimension().location(), pos.immutable());
         syncList(player);
     }
 
     public static void openEditor(ServerPlayer player, RespawnEntryType type, BlockPos pos) {
+        try {
+            openEditorUnsafe(player, type, pos);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to open respawn editor for {} at {}", type.serializedName(), pos, exception);
+            notifyPlayer(player, "Could not open respawn editor");
+        }
+    }
+
+    private static void openEditorUnsafe(ServerPlayer player, RespawnEntryType type, BlockPos pos) {
         RespawnSavedData data = RespawnSavedData.get(player.server);
         RespawnEntry entry = data.addOrUpdate(player.getUUID(), type, player.level().dimension().location(), pos.immutable());
-        Services.PLATFORM.sendToClient(player, new OpenEditorPayload(toView(player.server, entry)));
+        sendToClient(player, new OpenEditorPayload(toView(player.server, entry)));
         syncList(player);
     }
 
@@ -51,11 +70,20 @@ public final class PickYourBedServer {
     }
 
     public static void handleSelect(ServerPlayer player, long id) {
+        try {
+            handleSelectUnsafe(player, id);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to select respawn point {}", id, exception);
+            sendToClient(player, new SelectionResultPayload(false, "Respawn selection failed"));
+        }
+    }
+
+    private static void handleSelectUnsafe(ServerPlayer player, long id) {
         RespawnSavedData data = RespawnSavedData.get(player.server);
         Optional<RespawnEntry> optional = data.find(player.getUUID(), id);
         if (optional.isEmpty()) {
             syncList(player);
-            Services.PLATFORM.sendToClient(player, new SelectionResultPayload(false, "Respawn point was not found"));
+            sendToClient(player, new SelectionResultPayload(false, "Respawn point was not found"));
             return;
         }
 
@@ -63,13 +91,13 @@ public final class PickYourBedServer {
         RespawnValidation validation = validate(player.server, entry);
         if (!validation.valid()) {
             syncList(player);
-            Services.PLATFORM.sendToClient(player, new SelectionResultPayload(false, validation.reason()));
+            sendToClient(player, new SelectionResultPayload(false, validation.reason()));
             return;
         }
 
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, entry.dimension());
         player.setRespawnPosition(dimension, entry.pos(), player.getYRot(), false, false);
-        Services.PLATFORM.sendToClient(player, new SelectionResultPayload(true, ""));
+        sendToClient(player, new SelectionResultPayload(true, ""));
     }
 
     public static void syncList(ServerPlayer player) {
@@ -77,7 +105,7 @@ public final class PickYourBedServer {
         List<RespawnEntryView> views = data.entriesFor(player.getUUID()).stream()
             .map(entry -> toView(player.server, entry))
             .toList();
-        Services.PLATFORM.sendToClient(player, new BedListPayload(views));
+        sendToClient(player, new BedListPayload(views));
     }
 
     public static RespawnEntryView toView(MinecraftServer server, RespawnEntry entry) {
@@ -138,5 +166,13 @@ public final class PickYourBedServer {
 
     public static void notifyPlayer(ServerPlayer player, String message) {
         player.displayClientMessage(Component.literal(message), true);
+    }
+
+    private static void sendToClient(ServerPlayer player, CustomPacketPayload payload) {
+        try {
+            Services.PLATFORM.sendToClient(player, payload);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to send {} packet to {}", payload.type().id(), player.getGameProfile().getName(), exception);
+        }
     }
 }

@@ -3,6 +3,7 @@ package pick.your.respawn;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
 import java.util.UUID;
 
@@ -71,7 +72,10 @@ public class RespawnEntry {
     public static RespawnEntry load(CompoundTag tag) {
         UUID owner = tag.hasUUID("Owner") ? tag.getUUID("Owner") : new UUID(0L, 0L);
         RespawnEntryType type = RespawnEntryType.byName(tag.getString("Type"));
-        ResourceLocation dimension = ResourceLocation.parse(tag.getString("Dimension"));
+        ResourceLocation dimension = ResourceLocation.tryParse(tag.getString("Dimension"));
+        if (dimension == null) {
+            dimension = Level.OVERWORLD.location();
+        }
         BlockPos pos = new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z"));
         return new RespawnEntry(tag.getLong("Id"), owner, type, dimension, pos, tag.getString("Name"));
     }

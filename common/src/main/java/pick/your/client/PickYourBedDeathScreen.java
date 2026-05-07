@@ -74,7 +74,9 @@ public class PickYourBedDeathScreen extends Screen {
 
         Component normalLabel = this.hardcore ? Component.translatable("deathScreen.spectate") : Component.literal("Respawn Normally");
         this.exitButtons.add(this.addRenderableWidget(Button.builder(normalLabel, button -> {
-            this.minecraft.player.respawn();
+            if (this.minecraft.player != null) {
+                this.minecraft.player.respawn();
+            }
             button.active = false;
         }).bounds(this.width / 2 + 4, buttonY, 150, 20).build()));
 
@@ -114,6 +116,8 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        this.renderBackground(graphics, mouseX, mouseY, partialTick);
+
         graphics.pose().pushPose();
         graphics.pose().scale(2.0F, 2.0F, 2.0F);
         graphics.drawCenteredString(this.font, this.title, this.width / 4, 24, 0xFFFFFFFF);
@@ -361,7 +365,9 @@ public class PickYourBedDeathScreen extends Screen {
                     if (confirmed) {
                         this.exitToTitleScreen();
                     } else {
-                        this.minecraft.player.respawn();
+                        if (this.minecraft.player != null) {
+                            this.minecraft.player.respawn();
+                        }
                         this.minecraft.setScreen(null);
                     }
                 },

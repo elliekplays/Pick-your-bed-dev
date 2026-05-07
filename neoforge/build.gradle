@@ -37,3 +37,12 @@ neoForge {
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+processResources {
+    // Fabric Loom generates and packages this refmap, but ModDevGradle does not.
+    // Strip the declaration from the NeoForge jar so production logs do not warn
+    // about a missing pick_your_bed.refmap.json.
+    filesMatching("${mod_id}.mixins.json") {
+        filter { line -> line.contains('"refmap"') ? null : line }
+    }
+}

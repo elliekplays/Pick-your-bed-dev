@@ -690,41 +690,79 @@ public class PickYourBedDeathScreen extends Screen {
     private HardcoreLayout hardcoreLayout() {
         int screenWidth = Math.max(1, this.width);
         int screenHeight = Math.max(1, this.height);
+        int edge = 8;
         int buttonWidth = clamp(screenWidth - 48, 96, 180);
         if (screenWidth < buttonWidth + 16) {
             buttonWidth = Math.max(80, screenWidth - 16);
         }
-
         int buttonX = (screenWidth - buttonWidth) / 2;
-        int exitY = Math.max(8, screenHeight - 34);
-        int spectateY = Math.max(8, exitY - 24);
-        int textBottom = spectateY - 8;
-        boolean compact = screenHeight < 190 || screenWidth < 260;
-        int titleY = compact ? 16 : 36;
-        int causeY = compact ? 38 : 62;
-        boolean showDeathTitle = textBottom >= titleY + 18 && screenHeight >= 104;
-        if (!showDeathTitle) {
-            causeY = 14;
-        }
 
-        boolean showCause = textBottom >= causeY + 9;
-        int hardcoreY = showCause && this.causeOfDeath != null ? causeY + 14 : causeY;
-        if (hardcoreY > textBottom - 9) {
-            hardcoreY = Math.max(8, textBottom - 9);
-            showCause = false;
-        }
+        boolean compact = screenHeight < 190 || screenWidth < 260;
+        int smallGap = compact ? 4 : 6;
+        int largeGap = compact ? 8 : 12;
+        int buttonGap = 4;
+        int buttonBlockHeight = 20 + buttonGap + 20;
 
         int infoWidth = clamp(screenWidth - 48, 154, 340);
         if (screenWidth < infoWidth + 16) {
             infoWidth = Math.max(110, screenWidth - 16);
         }
         int infoLeft = (screenWidth - infoWidth) / 2;
-        int infoAreaTop = hardcoreY + 16;
-        int infoAreaBottom = spectateY - 10;
-        int infoAvailable = infoAreaBottom - infoAreaTop;
-        boolean showInfoPanel = infoAvailable >= 52;
-        int infoHeight = showInfoPanel ? Math.min(78, Math.max(52, infoAvailable)) : 0;
-        int infoTop = showInfoPanel ? infoAreaTop + Math.max(0, (infoAvailable - infoHeight) / 2) : 0;
+
+        boolean showDeathTitle = screenHeight >= 104 && screenWidth >= 140;
+        boolean showCause = this.causeOfDeath != null && screenHeight >= 132 && screenWidth >= 160;
+        boolean showInfoPanel = screenHeight >= 154 && screenWidth >= 128;
+        int infoHeight = showInfoPanel ? screenHeight >= 260 ? 78 : screenHeight >= 210 ? 68 : 52 : 0;
+        int stackHeight = hardcoreStackHeight(showDeathTitle, showCause, showInfoPanel, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        int availableHeight = Math.max(0, screenHeight - edge * 2);
+        if (stackHeight > availableHeight && showCause) {
+            showCause = false;
+            stackHeight = hardcoreStackHeight(showDeathTitle, false, showInfoPanel, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        }
+        if (stackHeight > availableHeight && showInfoPanel && infoHeight > 52) {
+            infoHeight = 52;
+            stackHeight = hardcoreStackHeight(showDeathTitle, showCause, true, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        }
+        if (stackHeight > availableHeight && showDeathTitle) {
+            showDeathTitle = false;
+            stackHeight = hardcoreStackHeight(false, showCause, showInfoPanel, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        }
+        if (stackHeight > availableHeight && showInfoPanel) {
+            showInfoPanel = false;
+            infoHeight = 0;
+            stackHeight = hardcoreStackHeight(showDeathTitle, showCause, false, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        }
+
+        int desiredButtonTop = (int)Math.round(screenHeight * 0.48D) - buttonBlockHeight / 2;
+        int stackTop = desiredButtonTop - (stackHeight - buttonBlockHeight);
+        int maxStackTop = Math.max(edge, screenHeight - edge - stackHeight);
+        stackTop = clamp(stackTop, edge, maxStackTop);
+
+        int y = stackTop;
+        int titleY = y;
+        if (showDeathTitle) {
+            y += 18 + smallGap;
+        }
+
+        int causeY = y;
+        if (showCause) {
+            y += 9 + smallGap;
+        }
+
+        int hardcoreY = y;
+        y += 9;
+
+        int infoTop = 0;
+        if (showInfoPanel) {
+            y += largeGap;
+            infoTop = y;
+            y += infoHeight;
+        }
+
+        y += largeGap;
+        int maxButtonTop = Math.max(edge, screenHeight - edge - buttonBlockHeight);
+        int spectateY = clamp(y, edge, maxButtonTop);
+        int exitY = spectateY + 20 + buttonGap;
         boolean showQuote = infoHeight >= 68;
         return new HardcoreLayout(
             buttonX,
@@ -743,6 +781,28 @@ public class PickYourBedDeathScreen extends Screen {
             showInfoPanel,
             showQuote
         );
+    }
+
+    private static int hardcoreStackHeight(
+        boolean showDeathTitle,
+        boolean showCause,
+        boolean showInfoPanel,
+        int infoHeight,
+        int smallGap,
+        int largeGap,
+        int buttonBlockHeight
+    ) {
+        int height = 9;
+        if (showDeathTitle) {
+            height += 18 + smallGap;
+        }
+        if (showCause) {
+            height += 9 + smallGap;
+        }
+        if (showInfoPanel) {
+            height += largeGap + infoHeight;
+        }
+        return height + largeGap + buttonBlockHeight;
     }
 
     private HeaderControls headerControls(Layout layout) {

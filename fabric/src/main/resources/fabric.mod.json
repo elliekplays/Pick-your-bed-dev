@@ -10,12 +10,7 @@
   "contributors": [
     "${credits}"
   ],
-  "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
-  },
   "license": "${license}",
-  "icon": "${mod_id}.png",
   "environment": "*",
   "entrypoints": {
     "main": [

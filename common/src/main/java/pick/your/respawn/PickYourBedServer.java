@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
@@ -24,6 +25,7 @@ import net.minecraft.world.level.block.state.properties.BedPart;
 
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,8 +74,14 @@ public final class PickYourBedServer {
     public static void handleSurvivalStatsRequest(ServerPlayer player) {
         SurvivalStatsSavedData data = SurvivalStatsSavedData.get(player.server);
         data.initializeForServer(player.server);
-        boolean useModStats = data.modTimerEnabled();
-        sendToClient(player, new SurvivalStatsPayload(useModStats, useModStats ? data.playTicks(player.getUUID()) : 0L));
+        if (data.modTimerEnabled()) {
+            recordHardcoreDeathIfNeeded(data, player);
+            OptionalLong deathPlayTicks = data.deathPlayTicks(player.getUUID());
+            sendToClient(player, new SurvivalStatsPayload(true, deathPlayTicks.orElse(data.playTicks(player.getUUID()))));
+            return;
+        }
+
+        sendToClient(player, new SurvivalStatsPayload(true, vanillaDeathPlayTicks(player)));
     }
 
     public static void handleServerStarted(MinecraftServer server) {
@@ -89,6 +97,7 @@ public final class PickYourBedServer {
 
         boolean changed = false;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            changed |= recordHardcoreDeathIfNeeded(data, player);
             changed |= data.tickPlayer(player);
         }
         if (changed && server.getTickCount() % 100 == 0) {
@@ -230,6 +239,23 @@ public final class PickYourBedServer {
 
     private static boolean isBrokenOrDestroyed(RespawnValidation validation) {
         return !validation.valid() && BROKEN_OR_DESTROYED.equals(validation.reason());
+    }
+
+    private static boolean recordHardcoreDeathIfNeeded(SurvivalStatsSavedData data, ServerPlayer player) {
+        if (!player.server.isHardcore()) {
+            return false;
+        }
+        if (player.isDeadOrDying() || player.isSpectator() && player.getLastDeathLocation().isPresent()) {
+            return data.recordDeath(player);
+        }
+        return false;
+    }
+
+    private static long vanillaDeathPlayTicks(ServerPlayer player) {
+        long playTicks = Math.max(0, player.getStats().getValue(Stats.CUSTOM, Stats.PLAY_TIME));
+        int deaths = Math.max(0, player.getStats().getValue(Stats.CUSTOM, Stats.DEATHS));
+        int timeSinceDeath = Math.max(0, player.getStats().getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH));
+        return deaths > 0 ? Math.max(0L, playTicks - timeSinceDeath) : playTicks;
     }
 
     private static void restoreOriginalRespawn(ServerPlayer player) {

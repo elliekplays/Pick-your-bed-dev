@@ -17,7 +17,6 @@ public class PickYourBed {
         NeoForge.EVENT_BUS.addListener(PickYourBed::onPlayerRespawn);
         NeoForge.EVENT_BUS.addListener(PickYourBed::onServerStarted);
         NeoForge.EVENT_BUS.addListener(PickYourBed::onServerTick);
-        CommonClass.init();
     }
 
     private static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {

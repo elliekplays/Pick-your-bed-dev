@@ -14,6 +14,5 @@ public class PickYourBed implements ModInitializer {
         ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> PickYourBedServer.handleAfterRespawn(newPlayer));
         ServerLifecycleEvents.SERVER_STARTED.register(PickYourBedServer::handleServerStarted);
         ServerTickEvents.END_SERVER_TICK.register(PickYourBedServer::handleServerTick);
-        CommonClass.init();
     }
 }

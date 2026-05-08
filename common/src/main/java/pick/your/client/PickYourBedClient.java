@@ -100,7 +100,7 @@ public final class PickYourBedClient {
     }
 
     public static void handleSurvivalStats(SurvivalStatsPayload payload) {
-        survivalStats = new SurvivalStatsSnapshot(payload.useModStats(), Math.max(0L, payload.playTicks()));
+        survivalStats = new SurvivalStatsSnapshot(payload.useServerStats(), Math.max(0L, payload.playTicks()));
     }
 
     public static void resetSurvivalStats() {
@@ -142,7 +142,7 @@ public final class PickYourBedClient {
         }
     }
 
-    public record SurvivalStatsSnapshot(boolean useModStats, long playTicks) {
+    public record SurvivalStatsSnapshot(boolean useServerStats, long playTicks) {
         static SurvivalStatsSnapshot vanilla() {
             return new SurvivalStatsSnapshot(false, 0L);
         }

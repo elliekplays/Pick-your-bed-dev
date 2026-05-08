@@ -52,6 +52,7 @@ public class PickYourBedDeathScreen extends Screen {
     private int scrollIndex;
     private boolean initializedOnce;
     private boolean spectateRequested;
+    private long frozenVanillaPlayTicks = -1L;
 
     public PickYourBedDeathScreen(Component causeOfDeath, boolean hardcore) {
         super(Component.translatable(hardcore ? "deathScreen.title.hardcore" : "deathScreen.title"));
@@ -534,14 +535,26 @@ public class PickYourBedDeathScreen extends Screen {
 
     private HardcoreStats hardcoreStats() {
         PickYourBedClient.SurvivalStatsSnapshot snapshot = PickYourBedClient.survivalStats();
-        long playTicks = snapshot.useModStats() ? snapshot.playTicks() : vanillaPlayTicks();
+        long playTicks = snapshot.useServerStats() ? snapshot.playTicks() : frozenVanillaPlayTicks();
         return new HardcoreStats(formatMinecraftDays(playTicks), formatPlayTime(playTicks));
     }
 
-    private long vanillaPlayTicks() {
+    private long frozenVanillaPlayTicks() {
+        if (this.frozenVanillaPlayTicks < 0L) {
+            this.frozenVanillaPlayTicks = vanillaDeathPlayTicks();
+        }
+        return this.frozenVanillaPlayTicks;
+    }
+
+    private long vanillaDeathPlayTicks() {
         long playTicks = 0L;
         if (this.minecraft != null && this.minecraft.player != null) {
             playTicks = Math.max(0, this.minecraft.player.getStats().getValue(Stats.CUSTOM, Stats.PLAY_TIME));
+            int deaths = Math.max(0, this.minecraft.player.getStats().getValue(Stats.CUSTOM, Stats.DEATHS));
+            int timeSinceDeath = Math.max(0, this.minecraft.player.getStats().getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH));
+            if (deaths > 0) {
+                return Math.max(0L, playTicks - timeSinceDeath);
+            }
             playTicks = Math.max(playTicks, this.minecraft.player.tickCount);
         }
 

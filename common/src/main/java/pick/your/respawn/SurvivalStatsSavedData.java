@@ -11,6 +11,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.UUID;
 
 public class SurvivalStatsSavedData extends SavedData {
@@ -23,6 +24,7 @@ public class SurvivalStatsSavedData extends SavedData {
     );
 
     private final Map<UUID, Long> playTicksByPlayer = new HashMap<>();
+    private final Map<UUID, Long> deathPlayTicksByPlayer = new HashMap<>();
     private boolean initialized;
     private boolean modTimerEnabled;
 
@@ -36,7 +38,6 @@ public class SurvivalStatsSavedData extends SavedData {
         }
 
         this.initialized = true;
-        // New saves create this data before meaningful world time has passed; existing saves fall back to vanilla stats.
         this.modTimerEnabled = server.overworld().getGameTime() <= NEW_WORLD_GRACE_TICKS;
         this.setDirty();
     }
@@ -49,12 +50,27 @@ public class SurvivalStatsSavedData extends SavedData {
         return Math.max(0L, this.playTicksByPlayer.getOrDefault(playerId, 0L));
     }
 
+    public OptionalLong deathPlayTicks(UUID playerId) {
+        Long playTicks = this.deathPlayTicksByPlayer.get(playerId);
+        return playTicks == null ? OptionalLong.empty() : OptionalLong.of(Math.max(0L, playTicks));
+    }
+
     public boolean tickPlayer(ServerPlayer player) {
         if (!this.modTimerEnabled() || player.isSpectator() || !player.isAlive()) {
             return false;
         }
 
         this.playTicksByPlayer.merge(player.getUUID(), 1L, Long::sum);
+        return true;
+    }
+
+    public boolean recordDeath(ServerPlayer player) {
+        if (!this.modTimerEnabled() || this.deathPlayTicksByPlayer.containsKey(player.getUUID())) {
+            return false;
+        }
+
+        this.deathPlayTicksByPlayer.put(player.getUUID(), this.playTicks(player.getUUID()));
+        this.setDirty();
         return true;
     }
 
@@ -68,6 +84,20 @@ public class SurvivalStatsSavedData extends SavedData {
             CompoundTag playerTag = new CompoundTag();
             playerTag.putUUID("Owner", entry.getKey());
             playerTag.putLong("PlayTicks", Math.max(0L, entry.getValue()));
+            Long deathPlayTicks = this.deathPlayTicksByPlayer.get(entry.getKey());
+            if (deathPlayTicks != null) {
+                playerTag.putLong("DeathPlayTicks", Math.max(0L, deathPlayTicks));
+            }
+            players.add(playerTag);
+        }
+        for (Map.Entry<UUID, Long> entry : this.deathPlayTicksByPlayer.entrySet()) {
+            if (this.playTicksByPlayer.containsKey(entry.getKey())) {
+                continue;
+            }
+            CompoundTag playerTag = new CompoundTag();
+            playerTag.putUUID("Owner", entry.getKey());
+            playerTag.putLong("PlayTicks", 0L);
+            playerTag.putLong("DeathPlayTicks", Math.max(0L, entry.getValue()));
             players.add(playerTag);
         }
         tag.put("Players", players);
@@ -83,7 +113,11 @@ public class SurvivalStatsSavedData extends SavedData {
         for (int i = 0; i < players.size(); i++) {
             CompoundTag playerTag = players.getCompound(i);
             if (playerTag.hasUUID("Owner")) {
-                data.playTicksByPlayer.put(playerTag.getUUID("Owner"), Math.max(0L, playerTag.getLong("PlayTicks")));
+                UUID owner = playerTag.getUUID("Owner");
+                data.playTicksByPlayer.put(owner, Math.max(0L, playerTag.getLong("PlayTicks")));
+                if (playerTag.contains("DeathPlayTicks", Tag.TAG_LONG)) {
+                    data.deathPlayTicksByPlayer.put(owner, Math.max(0L, playerTag.getLong("DeathPlayTicks")));
+                }
             }
         }
         return data;

@@ -67,57 +67,70 @@ public class PickYourBedDeathScreen extends Screen {
         this.refreshTicker = 0;
         this.exitButtons.clear();
         this.searchBox = null;
+        this.selectedRespawnButton = null;
         this.clearWidgets();
-        PickYourBedClient.requestEntries();
 
         Layout layout = layout();
-        HeaderControls header = headerControls(layout);
-        if (header.searchWidth >= 36) {
-            this.searchBox = new EditBox(this.font, header.searchX, header.y, header.searchWidth, 18, Component.literal("Search"));
-            this.searchBox.setMaxLength(32);
-            this.searchBox.setValue(this.searchText);
-            this.searchBox.setHint(Component.literal("Search"));
-            this.searchBox.setResponder(value -> {
-                this.searchText = value;
-                this.scrollIndex = 0;
-                updateSelectedButton();
-            });
-            this.addRenderableWidget(this.searchBox);
-        } else if (!this.searchText.isEmpty()) {
+        if (this.hardcore) {
             this.searchText = "";
-        }
+            HardcoreLayout hardcoreLayout = hardcoreLayout();
+            this.exitButtons.add(this.addRenderableWidget(Button.builder(Component.literal("Spectate"), button -> {
+                if (this.minecraft.player != null) {
+                    this.minecraft.player.respawn();
+                }
+                button.active = false;
+            }).bounds(hardcoreLayout.buttonX, hardcoreLayout.spectateY, hardcoreLayout.buttonWidth, 20).build()));
 
-        int filterX = header.filterX;
-        RespawnFilter[] filters = RespawnFilter.values();
-        for (int i = 0; i < filters.length; i++) {
-            RespawnFilter value = filters[i];
-            this.addRenderableWidget(Button.builder(Component.literal(header.filterLabels[i]), button -> {
-                this.filter = value;
-                this.scrollIndex = 0;
-                updateSelectedButton();
-            }).bounds(filterX, header.y, header.filterWidths[i], 18).build());
-            filterX += header.filterWidths[i] + header.filterGap;
-        }
-
-        int buttonY = layout.buttonTop;
-        this.selectedRespawnButton = this.addRenderableWidget(Button.builder(buttonLabel("Respawn at Selected", "Selected", layout.primaryButtonWidth), button -> respawnAtSelected())
-            .bounds(layout.primaryButtonX, buttonY, layout.primaryButtonWidth, 20)
-            .build());
-        this.exitButtons.add(this.selectedRespawnButton);
-
-        Component normalLabel = this.hardcore
-            ? Component.translatable("deathScreen.spectate")
-            : buttonLabel("Respawn at Last Point", "Last Point", layout.secondaryButtonWidth);
-        this.exitButtons.add(this.addRenderableWidget(Button.builder(normalLabel, button -> {
-            if (this.minecraft.player != null) {
-                this.minecraft.player.respawn();
+            this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Exit to Main Menu", "Exit", hardcoreLayout.buttonWidth), button -> handleExitToTitleScreen())
+                .bounds(hardcoreLayout.buttonX, hardcoreLayout.exitY, hardcoreLayout.buttonWidth, 20)
+                .build()));
+        } else {
+            PickYourBedClient.requestEntries();
+            HeaderControls header = headerControls(layout);
+            if (header.searchWidth >= 36) {
+                this.searchBox = new EditBox(this.font, header.searchX, header.y, header.searchWidth, 18, Component.literal("Search"));
+                this.searchBox.setMaxLength(32);
+                this.searchBox.setValue(this.searchText);
+                this.searchBox.setHint(Component.literal("Search"));
+                this.searchBox.setResponder(value -> {
+                    this.searchText = value;
+                    this.scrollIndex = 0;
+                    updateSelectedButton();
+                });
+                this.addRenderableWidget(this.searchBox);
+            } else if (!this.searchText.isEmpty()) {
+                this.searchText = "";
             }
-            button.active = false;
-        }).bounds(layout.secondaryButtonX, layout.secondaryButtonY, layout.secondaryButtonWidth, 20).build()));
 
-        this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Title Screen", "Title", layout.titleButtonWidth), button -> handleExitToTitleScreen())
-            .bounds(layout.titleButtonX, layout.titleButtonY, layout.titleButtonWidth, 20)
-            .build()));
+            int filterX = header.filterX;
+            RespawnFilter[] filters = RespawnFilter.values();
+            for (int i = 0; i < filters.length; i++) {
+                RespawnFilter value = filters[i];
+                this.addRenderableWidget(Button.builder(Component.literal(header.filterLabels[i]), button -> {
+                    this.filter = value;
+                    this.scrollIndex = 0;
+                    updateSelectedButton();
+                }).bounds(filterX, header.y, header.filterWidths[i], 18).build());
+                filterX += header.filterWidths[i] + header.filterGap;
+            }
+
+            int buttonY = layout.buttonTop;
+            this.selectedRespawnButton = this.addRenderableWidget(Button.builder(buttonLabel("Respawn at Selected", "Selected", layout.primaryButtonWidth), button -> respawnAtSelected())
+                .bounds(layout.primaryButtonX, buttonY, layout.primaryButtonWidth, 20)
+                .build());
+            this.exitButtons.add(this.selectedRespawnButton);
+
+            this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Respawn at Last Point", "Last Point", layout.secondaryButtonWidth), button -> {
+                if (this.minecraft.player != null) {
+                    this.minecraft.player.respawn();
+                }
+                button.active = false;
+            }).bounds(layout.secondaryButtonX, layout.secondaryButtonY, layout.secondaryButtonWidth, 20).build()));
+
+            this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Title Screen", "Title", layout.titleButtonWidth), button -> handleExitToTitleScreen())
+                .bounds(layout.titleButtonX, layout.titleButtonY, layout.titleButtonWidth, 20)
+                .build()));
+        }
 
         setButtonsActive(this.delayTicker >= 20);
         updateSelectedButton();
@@ -142,7 +155,7 @@ public class PickYourBedDeathScreen extends Screen {
         if (this.delayTicker == 20) {
             setButtonsActive(true);
         }
-        if (this.refreshTicker >= 40) {
+        if (!this.hardcore && this.refreshTicker >= 40) {
             this.refreshTicker = 0;
             PickYourBedClient.requestEntries();
         }
@@ -153,6 +166,31 @@ public class PickYourBedDeathScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         Layout layout = layout();
+
+        if (this.hardcore) {
+            HardcoreLayout hardcoreLayout = hardcoreLayout();
+            if (hardcoreLayout.showDeathTitle) {
+                graphics.pose().pushPose();
+                graphics.pose().scale(2.0F, 2.0F, 2.0F);
+                graphics.drawCenteredString(this.font, this.title, this.width / 4, hardcoreLayout.titleY / 2, 0xFFFFFFFF);
+                graphics.pose().popPose();
+            }
+
+            if (hardcoreLayout.showCause && this.causeOfDeath != null) {
+                graphics.drawCenteredString(this.font, this.causeOfDeath, this.width / 2, hardcoreLayout.causeY, 0xFFE8EDF2);
+            }
+            graphics.drawCenteredString(this.font, Component.literal("Hardcore Mode"), this.width / 2, hardcoreLayout.hardcoreY, 0xFFFF5555);
+            if (hardcoreLayout.showScore) {
+                graphics.drawCenteredString(this.font, this.deathScore, this.width / 2, hardcoreLayout.scoreY, 0xFFE8EDF2);
+            }
+
+            renderWidgets(graphics, mouseX, mouseY, partialTick);
+            if (hardcoreLayout.showCause && this.causeOfDeath != null && mouseY > hardcoreLayout.causeY && mouseY < hardcoreLayout.causeY + 9) {
+                Style style = this.getClickedComponentStyleAt(mouseX);
+                graphics.renderComponentHoverEffect(this.font, style, mouseX, mouseY);
+            }
+            return;
+        }
 
         if (layout.showDeathTitle) {
             graphics.pose().pushPose();
@@ -185,6 +223,18 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.hardcore) {
+            HardcoreLayout layout = hardcoreLayout();
+            if (layout.showCause && this.causeOfDeath != null && mouseY > layout.causeY && mouseY < layout.causeY + 9) {
+                Style style = this.getClickedComponentStyleAt((int)mouseX);
+                if (style != null && style.getClickEvent() != null && style.getClickEvent().getAction() == ClickEvent.Action.OPEN_URL) {
+                    this.handleComponentClicked(style);
+                    return false;
+                }
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+
         Layout layout = layout();
         if (layout.showCause && this.causeOfDeath != null && mouseY > layout.causeY && mouseY < layout.causeY + 9) {
             Style style = this.getClickedComponentStyleAt((int)mouseX);
@@ -213,6 +263,10 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (this.hardcore) {
+            return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        }
+
         if (insideList((int)mouseX, (int)mouseY)) {
             int max = Math.max(0, filteredEntries().size() - layout().visibleRows);
             this.scrollIndex = Math.max(0, Math.min(max, this.scrollIndex - (int)Math.signum(scrollY)));
@@ -532,6 +586,38 @@ public class PickYourBedDeathScreen extends Screen {
         );
     }
 
+    private HardcoreLayout hardcoreLayout() {
+        int screenWidth = Math.max(1, this.width);
+        int screenHeight = Math.max(1, this.height);
+        int buttonWidth = clamp(screenWidth - 48, 96, 180);
+        if (screenWidth < buttonWidth + 16) {
+            buttonWidth = Math.max(80, screenWidth - 16);
+        }
+
+        int buttonX = (screenWidth - buttonWidth) / 2;
+        int exitY = Math.max(8, screenHeight - 34);
+        int spectateY = Math.max(8, exitY - 24);
+        int textBottom = spectateY - 8;
+        boolean compact = screenHeight < 170 || screenWidth < 260;
+        int titleY = compact ? 16 : 48;
+        int causeY = compact ? 38 : 76;
+        boolean showDeathTitle = textBottom >= titleY + 18 && screenHeight >= 104;
+        if (!showDeathTitle) {
+            causeY = 14;
+        }
+
+        boolean showCause = textBottom >= causeY + 9;
+        int hardcoreY = showCause && this.causeOfDeath != null ? causeY + 14 : causeY;
+        if (hardcoreY > textBottom - 9) {
+            hardcoreY = Math.max(8, textBottom - 9);
+            showCause = false;
+        }
+
+        int scoreY = hardcoreY + 14;
+        boolean showScore = textBottom >= scoreY + 9;
+        return new HardcoreLayout(buttonX, buttonWidth, spectateY, exitY, titleY, causeY, hardcoreY, scoreY, showDeathTitle, showCause, showScore);
+    }
+
     private HeaderControls headerControls(Layout layout) {
         int left = layout.panelLeft + 14;
         int right = layout.panelLeft + layout.panelWidth - 14;
@@ -658,6 +744,21 @@ public class PickYourBedDeathScreen extends Screen {
         int filterGap,
         int[] filterWidths,
         String[] filterLabels
+    ) {
+    }
+
+    private record HardcoreLayout(
+        int buttonX,
+        int buttonWidth,
+        int spectateY,
+        int exitY,
+        int titleY,
+        int causeY,
+        int hardcoreY,
+        int scoreY,
+        boolean showDeathTitle,
+        boolean showCause,
+        boolean showScore
     ) {
     }
 

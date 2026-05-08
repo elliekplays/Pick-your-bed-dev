@@ -7,9 +7,6 @@
   "authors": [
     "${mod_author}"
   ],
-  "contributors": [
-    "${credits}"
-  ],
   "license": "${license}",
   "environment": "*",
   "entrypoints": {

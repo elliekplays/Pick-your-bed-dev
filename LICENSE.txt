@@ -1,2 +1,68 @@
-Copyright (c) 2026 m.b.r
-All rights reserved.
+Pick your bed Custom Restricted License
+
+Copyright (c) 2026 elliekplays
+
+This license applies to the Pick your bed Minecraft mod, including its source code,
+compiled builds, assets, documentation, metadata, and any other files distributed
+with the project.
+
+This is a custom source-available license. It is not an open-source license.
+
+1. Ownership
+
+Pick your bed is owned by elliekplays. All rights not clearly granted by this
+license are reserved by elliekplays.
+
+2. Permission Granted
+
+You may:
+
+- Download and install official builds of the mod for personal use.
+- Use official builds of the mod in Minecraft clients and servers you control.
+- View the source code for learning, review, and personal reference.
+- Modify the source code or compiled mod for personal private use.
+- Share links to the official project page or official release downloads.
+- Fork or copy the repository only where a code hosting platform's terms
+  require that ability for public repositories. Any such fork or copy remains
+  bound by this license.
+
+3. Restrictions
+
+You may not, without prior permission from elliekplays:
+
+- Reupload, redistribute, mirror, or republish the mod or its compiled builds.
+- Sell, rent, monetize, or commercially distribute the mod.
+- Publish modified builds of the mod.
+- Publish modified forks, ports, or derivative versions of the project.
+- Use a fork or copy to avoid the redistribution restrictions in this license.
+- Claim ownership of the mod or present unofficial versions as official.
+- Remove or alter copyright, license, author, or ownership notices.
+- Use the project name, branding, or identity in a way that suggests official
+  approval when none was granted.
+
+4. Permission Requests
+
+If you want to publish modifications, redistribute builds, include the mod in a
+distributed pack, publish a port, publish a derivative project, mirror the
+project, or host the project somewhere else, request permission from elliekplays
+first. Permission is only valid when elliekplays clearly grants it.
+
+5. Owner Rights
+
+elliekplays may approve, deny, revoke, or change permission for redistribution,
+modified releases, mirrors, ports, third-party hosting, or public derivative
+projects at their discretion. elliekplays may request removal or takedown of
+unauthorized copies, mirrors, modified builds, ports, redistributions, or
+derivative projects.
+
+6. No Warranty
+
+The mod is provided as-is, without warranty of any kind. elliekplays is not
+responsible for crashes, data loss, server issues, compatibility problems, or
+any other damages caused by using, modifying, or distributing the mod.
+
+7. License Changes
+
+Future versions of Pick your bed may be released under different terms. The
+license included with a specific version applies to that version unless
+elliekplays states otherwise.

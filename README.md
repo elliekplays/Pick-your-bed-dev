@@ -1,41 +1,91 @@
 # Pick your bed
 
-Pick your bed is a Minecraft 1.21.1 Fabric and NeoForge mod that replaces the death screen with a respawn picker for saved beds and respawn anchors.
+[![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?style=for-the-badge)](https://www.minecraft.net/)
+[![Fabric](https://img.shields.io/badge/Fabric-supported-DBD0B4?style=for-the-badge)](https://fabricmc.net/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-supported-E04E14?style=for-the-badge)](https://neoforged.net/)
+[![Java 21](https://img.shields.io/badge/Java-21-007396?style=for-the-badge)](https://adoptium.net/temurin/releases/?version=21)
+[![License](https://img.shields.io/badge/License-Custom_Restricted-lightgrey?style=for-the-badge)](LICENSE.txt)
+
+Pick your bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
+
+Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge** from the same project.
 
 ## Features
 
-- Records beds and respawn anchors placed by each player.
-- Lets players choose a valid saved respawn point from the death screen.
-- Shows broken or destroyed respawn points as unavailable and removes them after respawn.
-- Supports renaming respawn points from the death screen or by sneak-right-clicking the block.
-- Includes search and filters for beds versus other respawn points.
-- Adds hardcore-mode death screen support with a frozen survival record.
-- Allows hardcore spectators to keep loading and ticking chunks.
+- Replaces the vanilla death screen with a custom respawn picker.
+- Saves beds and respawn anchors placed by each player.
+- Lets you respawn at any valid saved point instead of only the latest one.
+- Shows each point's name, dimension, coordinates, and validity.
+- Adds a search box for finding respawn points by name.
+- Adds filters for all points, beds, and other respawn blocks.
+- Lets you rename points from the death screen.
+- Lets you rename a bed or respawn anchor by sneak-right-clicking it in-world.
+- Greys out broken, destroyed, uncharged, obstructed, or dimension-invalid points.
+- Shows a warning icon on invalid points instead of an edit button.
+- Removes broken or destroyed points after the next respawn.
+- Keeps a fallback button for respawning at the last normal respawn point.
+- Adds a proper title-screen confirmation instead of opening vanilla's extra death menu.
+- Supports Minecraft GUI scale changes and manual window resizing.
 
-## Builds
+## Compatibility
 
-Use Java 21.
+| Requirement | Version |
+| --- | --- |
+| Minecraft | `1.21.1` |
+| Java | `21` |
+| Fabric Loader | `0.15.11` or newer |
+| Fabric API | Required for Fabric |
+| NeoForge | `21.1.228` or newer |
+
+For multiplayer, install Pick your bed on both the client and the server. The client handles the UI; the server stores and validates respawn points.
+
+## Installing Prebuilt Jars
+
+1. Install either [Fabric](https://fabricmc.net/use/installer/) or [NeoForge](https://neoforged.net/).
+2. If using Fabric, also install [Fabric API](https://modrinth.com/mod/fabric-api).
+3. Download the matching jar from the project's [Releases](../../releases) page.
+4. Put the jar into the Minecraft `mods` folder.
+5. Start Minecraft 1.21.1.
+
+Use only one jar for your loader. Fabric users should use the Fabric jar; NeoForge users should use the NeoForge jar.
+
+## Building The Mod Yourself
+
+Install [Java 21](https://adoptium.net/temurin/releases/?version=21), then run:
 
 ```powershell
-.\gradlew.bat :fabric:build :neoforge:build --offline --console=plain --max-workers=1
+.\gradlew.bat clean :fabric:build :neoforge:build --console=plain --max-workers=1
 ```
 
-Output jars:
+On macOS or Linux:
 
-- `fabric/build/libs/pick-your-bed-1.21.1-1.3.8-fabric.jar`
-- `neoforge/build/libs/pick-your-bed-1.21.1-1.3.8-neoforge.jar`
+```sh
+./gradlew clean :fabric:build :neoforge:build --console=plain --max-workers=1
+```
 
-## Project Layout
+Built jars are created in:
 
-- `common` shared mod code and mixins
-- `fabric` Fabric loader entrypoints and networking
-- `neoforge` NeoForge loader entrypoints and networking
+- `fabric/build/libs/`
+- `neoforge/build/libs/`
 
-## Credits
+The project only builds playable mod jars. It does not generate `-sources.jar` or `-javadoc.jar` files.
 
-- m.b.r
-- elliekplays
+## Project Structure
+
+| Path | Purpose |
+| --- | --- |
+| [`common`](common) | Shared UI, saved data, validation, networking payloads, and mixins |
+| [`fabric`](fabric) | Fabric entrypoints and Fabric networking |
+| [`neoforge`](neoforge) | NeoForge entrypoint and NeoForge networking |
+| [`buildSrc`](buildSrc) | Shared Gradle setup |
+| [`gradle.properties`](gradle.properties) | Version numbers and mod metadata |
+
+## Contributing
+
+Small fixes and improvements are welcome. For bug reports, include the Minecraft version, loader, mod version, crash log if there is one, and a clear way to reproduce the issue. For code changes, build both Fabric and NeoForge before submitting.
 
 ## License
 
-This project is currently marked as All Rights Reserved. Choose and apply an open-source license before publishing it as open source.
+Pick your bed is source-available under the [Pick your bed Custom Restricted License](LICENSE.txt).
+
+You may download, install, play, study, and privately modify the mod. You may not reupload, redistribute, sell, publish modified builds, or publish modified forks without permission from **elliekplays**.

@@ -84,7 +84,6 @@ processResources {
                        'description'                  : project.description,
                        'neoforge_version'             : neoforge_version,
                        'neoforge_loader_version_range': neoforge_loader_version_range,
-                       'credits'                      : credits,
                        'java_version'                 : java_version]
 
     filesMatching(['pack.mcmeta', 'fabric.mod.json', 'META-INF/neoforge.mods.toml', '*.mixins.json']) {

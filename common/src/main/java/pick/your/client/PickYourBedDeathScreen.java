@@ -51,6 +51,7 @@ public class PickYourBedDeathScreen extends Screen {
     private int refreshTicker;
     private int scrollIndex;
     private boolean initializedOnce;
+    private boolean spectateRequested;
 
     public PickYourBedDeathScreen(Component causeOfDeath, boolean hardcore) {
         super(Component.translatable(hardcore ? "deathScreen.title.hardcore" : "deathScreen.title"));
@@ -82,7 +83,12 @@ public class PickYourBedDeathScreen extends Screen {
             HardcoreLayout hardcoreLayout = hardcoreLayout();
             this.exitButtons.add(this.addRenderableWidget(Button.builder(Component.literal("Spectate"), button -> {
                 if (this.minecraft.player != null) {
-                    this.minecraft.player.respawn();
+                    if (this.minecraft.player.isSpectator() && !this.minecraft.player.isDeadOrDying()) {
+                        this.minecraft.setScreen(null);
+                    } else {
+                        this.spectateRequested = true;
+                        this.minecraft.player.respawn();
+                    }
                 }
                 button.active = false;
             }).bounds(hardcoreLayout.buttonX, hardcoreLayout.spectateY, hardcoreLayout.buttonWidth, 20).build()));
@@ -169,6 +175,10 @@ public class PickYourBedDeathScreen extends Screen {
             } else {
                 PickYourBedClient.requestEntries();
             }
+        }
+        if (this.hardcore && this.spectateRequested && this.minecraft.player != null && this.minecraft.player.isSpectator() && !this.minecraft.player.isDeadOrDying()) {
+            this.minecraft.setScreen(null);
+            return;
         }
         updateSelectedButton();
     }

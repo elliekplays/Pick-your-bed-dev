@@ -35,4 +35,23 @@ public class MixinRespawnAnchorBlock {
         }
         info.setReturnValue(InteractionResult.sidedSuccess(level.isClientSide));
     }
+
+    @Inject(method = "useWithoutItem", at = @At("TAIL"))
+    private void pick_your_bed$recordUsedAnchor(
+        BlockState state,
+        Level level,
+        BlockPos pos,
+        Player player,
+        BlockHitResult hitResult,
+        CallbackInfoReturnable<InteractionResult> info
+    ) {
+        if (level.isClientSide || player.isShiftKeyDown() || !(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        BlockPos currentRespawn = serverPlayer.getRespawnPosition();
+        if (currentRespawn != null && currentRespawn.equals(pos) && level.dimension().equals(serverPlayer.getRespawnDimension())) {
+            PickYourBedServer.recordCurrentRespawn(serverPlayer);
+        }
+    }
 }

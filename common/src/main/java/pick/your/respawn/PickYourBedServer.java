@@ -79,7 +79,22 @@ public final class PickYourBedServer {
     }
 
     public static void handleListRequest(ServerPlayer player) {
+        try {
+            ensureCurrentRespawnKnown(player);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to include current respawn point for {}", player.getGameProfile().getName(), exception);
+        }
         syncList(player);
+    }
+
+    public static void recordCurrentRespawn(ServerPlayer player) {
+        try {
+            if (ensureCurrentRespawnKnown(player)) {
+                syncList(player);
+            }
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to record current respawn point for {}", player.getGameProfile().getName(), exception);
+        }
     }
 
     public static void handleSurvivalStatsRequest(ServerPlayer player) {
@@ -178,6 +193,49 @@ public final class PickYourBedServer {
             .map(entry -> toView(player.server, entry))
             .toList();
         sendToClient(player, new BedListPayload(views));
+    }
+
+    private static boolean ensureCurrentRespawnKnown(ServerPlayer player) {
+        BlockPos pos = player.getRespawnPosition();
+        if (pos == null) {
+            return false;
+        }
+
+        ResourceKey<Level> dimension = player.getRespawnDimension();
+        if (dimension == null) {
+            return false;
+        }
+
+        ServerLevel level = player.server.getLevel(dimension);
+        if (level == null) {
+            return false;
+        }
+
+        BlockState state = level.getBlockState(pos);
+        RespawnEntryType type;
+        BlockPos savedPos = pos;
+        if (state.getBlock() instanceof BedBlock) {
+            savedPos = state.getValue(BedBlock.PART) == BedPart.HEAD
+                ? pos
+                : pos.relative(state.getValue(BedBlock.FACING));
+            state = level.getBlockState(savedPos);
+            if (!(state.getBlock() instanceof BedBlock)) {
+                return false;
+            }
+            type = RespawnEntryType.BED;
+        } else if (state.getBlock() instanceof RespawnAnchorBlock) {
+            type = RespawnEntryType.RESPAWN_ANCHOR;
+        } else {
+            return false;
+        }
+
+        RespawnValidation compatibility = validateCompatibility(level, savedPos, state);
+        if (!compatibility.valid()) {
+            return false;
+        }
+
+        RespawnSavedData.get(player.server).addOrUpdate(player.getUUID(), type, level.dimension().location(), savedPos.immutable());
+        return true;
     }
 
     public static RespawnEntryView toView(MinecraftServer server, RespawnEntry entry) {

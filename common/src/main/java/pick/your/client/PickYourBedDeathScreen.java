@@ -447,8 +447,6 @@ public class PickYourBedDeathScreen extends Screen {
         lines.add(Component.literal(tooltipEntry.valid() ? "Ready to respawn" : tooltipEntry.invalidReason()));
         if (BROKEN_OR_DESTROYED.equals(tooltipEntry.invalidReason()) || ModCompatibility.shouldRemoveAfterRespawn(tooltipEntry.invalidReason())) {
             lines.add(Component.literal("Will be removed after you respawn"));
-        } else if (ModCompatibility.MOVING_CONTRAPTION.equals(tooltipEntry.invalidReason())) {
-            lines.add(Component.literal("Unavailable until it is back in the world"));
         }
         graphics.renderComponentTooltip(this.font, lines, mouseX, mouseY);
     }

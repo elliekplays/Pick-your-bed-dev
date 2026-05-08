@@ -37,7 +37,6 @@ public class RespawnSavedData extends SavedData {
         List<RespawnEntry> entries = this.entriesByOwner.computeIfAbsent(owner, unused -> new ArrayList<>());
         for (RespawnEntry entry : entries) {
             if (entry.samePlace(type, dimension, pos)) {
-                this.setDirty();
                 return entry;
             }
         }

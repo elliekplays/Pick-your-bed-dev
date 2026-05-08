@@ -59,4 +59,29 @@ public class MixinBedBlock {
         }
         info.setReturnValue(InteractionResult.sidedSuccess(level.isClientSide));
     }
+
+    @Inject(method = "useWithoutItem", at = @At("TAIL"))
+    private void pick_your_bed$recordUsedBed(
+        BlockState state,
+        Level level,
+        BlockPos pos,
+        Player player,
+        BlockHitResult hitResult,
+        CallbackInfoReturnable<InteractionResult> info
+    ) {
+        if (level.isClientSide || player.isShiftKeyDown() || !(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+
+        BlockPos currentRespawn = serverPlayer.getRespawnPosition();
+        if (currentRespawn == null || !level.dimension().equals(serverPlayer.getRespawnDimension())) {
+            return;
+        }
+
+        BlockPos headPos = state.getValue(BedBlock.PART) == BedPart.HEAD ? pos : pos.relative(state.getValue(BedBlock.FACING));
+        BlockPos footPos = state.getValue(BedBlock.PART) == BedPart.FOOT ? pos : pos.relative(state.getValue(BedBlock.FACING).getOpposite());
+        if (currentRespawn.equals(headPos) || currentRespawn.equals(footPos)) {
+            PickYourBedServer.recordCurrentRespawn(serverPlayer);
+        }
+    }
 }

@@ -8,7 +8,7 @@
 
 Pick your bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
 
-Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge** from the same project.
+Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge**
 
 ## Features
 
@@ -16,16 +16,11 @@ Instead of only using the most recent bed or respawn anchor, the mod keeps a per
 - Saves beds and respawn anchors placed by each player.
 - Lets you respawn at any valid saved point instead of only the latest one.
 - Shows each point's name, dimension, coordinates, and validity.
-- Adds a search box for finding respawn points by name.
-- Adds filters for all points, beds, and other respawn blocks.
 - Lets you rename points from the death screen.
 - Lets you rename a bed or respawn anchor by sneak-right-clicking it in-world.
-- Greys out broken, destroyed, uncharged, obstructed, or dimension-invalid points.
 - Shows a warning icon on invalid points instead of an edit button.
 - Removes broken or destroyed points after the next respawn.
-- Keeps a fallback button for respawning at the last normal respawn point.
-- Adds a proper title-screen confirmation instead of opening vanilla's extra death menu.
-- Supports Minecraft GUI scale changes and manual window resizing.
+- Supports other mods too like create.
 
 ## Compatibility
 
@@ -45,7 +40,8 @@ For multiplayer, install Pick your bed on both the client and the server. The cl
 | --- | --- |
 | [Comforts](https://www.curseforge.com/minecraft/mc-mods/comforts) | Sleeping bags and hammocks are ignored because they are sleep blocks, not saved respawn points. |
 | [Create](https://modrinth.com/mod/create) | Beds and respawn anchors are tagged as non-movable so contraptions do not casually move saved respawn blocks. |
-| [Create: Aeronautics](https://www.curseforge.com/minecraft/mc-mods/create-aeronautics) | Respawn points inside moving sublevel/physics contraption space are shown as unavailable instead of being used as unsafe coordinates. |
+| [Create: Aeronautics](https://www.curseforge.com/minecraft/mc-mods/create-aeronautics) | Ship beds are recorded and listed like normal beds, matching vanilla's working respawn behavior on airships. |
+| Other vanilla-compatible respawn mods | If a mod sets the player's normal Minecraft respawn point to a real bed or respawn anchor, Pick your bed can backfill it into the death-screen list. Custom respawn systems that do not use Minecraft's normal respawn position are not automatically supported. |
 
 ## Installing Prebuilt Jars
 
@@ -92,8 +88,16 @@ The project only builds playable mod jars. It does not generate `-sources.jar` o
 
 Small fixes and improvements are welcome. For bug reports, include the Minecraft version, loader, mod version, crash log if there is one, and a clear way to reproduce the issue. For code changes, build both Fabric and NeoForge before submitting.
 
+## Contact
+
+![Developer](https://img.shields.io/badge/Developer-elliekplays-8A2BE2?style=for-the-badge)
+![Discord](https://img.shields.io/badge/Discord-elliekplays-5865F2?style=for-the-badge&logo=discord&logoColor=white)
+![Email](https://img.shields.io/badge/Email-soon-EA4335?style=for-the-badge&logo=gmail&logoColor=white)
+
+For bug reports or support, include your Minecraft version, loader, mod version, installed compatibility mods, and a clear way to reproduce the issue.
+
 ## License
 
 Pick your bed is source-available under the [Pick your bed Custom Restricted License](LICENSE.txt).
 
-You may download, install, play, study, and privately modify the mod. You may not reupload, redistribute, sell, publish modified builds, or publish modified forks without permission from **elliekplays**.
+You may download, install, play, study, and privately modify the mod. You may not reupload, redistribute, sell, publish modified builds, or publish modified forks without permission from **Developer**.

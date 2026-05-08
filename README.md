@@ -4,23 +4,27 @@
 [![Fabric](https://img.shields.io/badge/Fabric-supported-DBD0B4?style=for-the-badge)](https://fabricmc.net/)
 [![NeoForge](https://img.shields.io/badge/NeoForge-supported-E04E14?style=for-the-badge)](https://neoforged.net/)
 [![Java 21](https://img.shields.io/badge/Java-21-007396?style=for-the-badge)](https://adoptium.net/temurin/releases/?version=21)
+[![Version](https://img.shields.io/badge/Version-1.3.9-80C7D4?style=for-the-badge)](gradle.properties)
 [![License](https://img.shields.io/badge/License-Custom_Restricted-lightgrey?style=for-the-badge)](LICENSE.txt)
 
 Pick your bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
 
-Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge**
+Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge**.
 
 ## Features
 
 - Replaces the vanilla death screen with a custom respawn picker.
 - Saves beds and respawn anchors placed by each player.
+- Also records the player's current vanilla respawn point when a compatible mod sets one.
 - Lets you respawn at any valid saved point instead of only the latest one.
 - Shows each point's name, dimension, coordinates, and validity.
 - Lets you rename points from the death screen.
 - Lets you rename a bed or respawn anchor by sneak-right-clicking it in-world.
+- Greys out broken, destroyed, uncharged, obstructed, or dimension-invalid points.
 - Shows a warning icon on invalid points instead of an edit button.
 - Removes broken or destroyed points after the next respawn.
-- Supports other mods too like create.
+- Keeps a fallback button for respawning at the last normal respawn point.
+- Supports Create, Create: Aeronautics, Comforts, and other vanilla-compatible respawn mods.
 
 ## Compatibility
 
@@ -100,4 +104,4 @@ For bug reports or support, include your Minecraft version, loader, mod version,
 
 Pick your bed is source-available under the [Pick your bed Custom Restricted License](LICENSE.txt).
 
-You may download, install, play, study, and privately modify the mod. You may not reupload, redistribute, sell, publish modified builds, or publish modified forks without permission from **Developer**.
+You may download, install, play, study, and privately modify the mod. You may not reupload, redistribute, sell, publish modified builds, or publish modified forks without permission from **elliekplays**.

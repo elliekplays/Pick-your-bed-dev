@@ -733,8 +733,16 @@ public class PickYourBedDeathScreen extends Screen {
             stackHeight = hardcoreStackHeight(showDeathTitle, showCause, false, infoHeight, smallGap, largeGap, buttonBlockHeight);
         }
 
-        int desiredButtonTop = (int)Math.round(screenHeight * 0.48D) - buttonBlockHeight / 2;
-        int stackTop = desiredButtonTop - (stackHeight - buttonBlockHeight);
+        int topTextHeight = hardcoreTopTextHeight(showDeathTitle, showCause, smallGap);
+        int stackTop;
+        if (showInfoPanel) {
+            int desiredInfoCenter = (int)Math.round(screenHeight / 3.0D);
+            int desiredInfoTop = desiredInfoCenter - infoHeight / 2;
+            stackTop = desiredInfoTop - topTextHeight - largeGap;
+        } else {
+            int desiredStackCenter = (int)Math.round(screenHeight * 0.40D);
+            stackTop = desiredStackCenter - stackHeight / 2;
+        }
         int maxStackTop = Math.max(edge, screenHeight - edge - stackHeight);
         stackTop = clamp(stackTop, edge, maxStackTop);
 
@@ -783,6 +791,17 @@ public class PickYourBedDeathScreen extends Screen {
         );
     }
 
+    private static int hardcoreTopTextHeight(boolean showDeathTitle, boolean showCause, int smallGap) {
+        int height = 9;
+        if (showDeathTitle) {
+            height += 18 + smallGap;
+        }
+        if (showCause) {
+            height += 9 + smallGap;
+        }
+        return height;
+    }
+
     private static int hardcoreStackHeight(
         boolean showDeathTitle,
         boolean showCause,
@@ -792,13 +811,7 @@ public class PickYourBedDeathScreen extends Screen {
         int largeGap,
         int buttonBlockHeight
     ) {
-        int height = 9;
-        if (showDeathTitle) {
-            height += 18 + smallGap;
-        }
-        if (showCause) {
-            height += 9 + smallGap;
-        }
+        int height = hardcoreTopTextHeight(showDeathTitle, showCause, smallGap);
         if (showInfoPanel) {
             height += largeGap + infoHeight;
         }

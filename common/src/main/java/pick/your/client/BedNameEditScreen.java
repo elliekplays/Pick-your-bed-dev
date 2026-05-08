@@ -45,11 +45,11 @@ public class BedNameEditScreen extends Screen {
         });
         this.addRenderableWidget(this.nameBox);
 
-        this.saveButton = this.addRenderableWidget(Button.builder(Component.literal("Save"), button -> this.save())
+        this.saveButton = this.addRenderableWidget(Button.builder(buttonLabel("Save", "Save", layout.saveWidth), button -> this.save())
             .bounds(layout.saveX, layout.saveY, layout.saveWidth, 20)
             .build());
         this.saveButton.active = !initialName.trim().isEmpty();
-        this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.close())
+        this.addRenderableWidget(Button.builder(buttonLabel("Cancel", "Back", layout.cancelWidth), button -> this.close())
             .bounds(layout.cancelX, layout.cancelY, layout.cancelWidth, 20)
             .build());
         this.setInitialFocus(this.nameBox);
@@ -65,7 +65,9 @@ public class BedNameEditScreen extends Screen {
         graphics.fill(layout.left, layout.top + layout.panelHeight - 1, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_BORDER);
         graphics.fill(layout.left, layout.top, layout.left + 1, layout.top + layout.panelHeight, PANEL_BORDER);
         graphics.fill(layout.left + layout.panelWidth - 1, layout.top, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_BORDER);
-        graphics.drawString(this.font, "Edit name", layout.left + 18, layout.top + 14, 0xFFFFFFFF, false);
+        if (layout.showTitle) {
+            graphics.drawString(this.font, "Edit name", layout.left + 18, layout.top + 14, 0xFFFFFFFF, false);
+        }
         if (layout.showCoordinate) {
             graphics.drawString(this.font, trimToWidth(this.entry.coordinateText() + " in " + this.entry.dimensionText(), layout.panelWidth - 36), layout.left + 18, layout.top + 28, 0xFFB8C2CC, false);
         }
@@ -122,7 +124,8 @@ public class BedNameEditScreen extends Screen {
         int panelHeight = Math.min(narrow ? 146 : 122, Math.max(72, screenHeight - 16));
         int left = (screenWidth - panelWidth) / 2;
         int top = clamp(screenHeight / 2 - panelHeight / 2, 8, Math.max(8, screenHeight - panelHeight - 8));
-        boolean showCoordinate = panelHeight >= 104;
+        boolean showTitle = panelHeight >= 92;
+        boolean showCoordinate = panelHeight >= 112;
 
         boolean stackedButtons = narrow && panelHeight >= 126;
         int saveWidth = stackedButtons ? Math.min(96, panelWidth - 36) : Math.max(34, Math.min(64, (panelWidth - 42) / 2));
@@ -139,13 +142,13 @@ public class BedNameEditScreen extends Screen {
         } else {
             int buttonsWidth = saveWidth + 6 + cancelWidth;
             saveX = left + panelWidth / 2 - buttonsWidth / 2;
-            saveY = top + panelHeight - 38;
+            saveY = top + panelHeight - 28;
             cancelX = saveX + saveWidth + 6;
             cancelY = saveY;
         }
-        int preferredNameBoxY = showCoordinate ? top + 48 : top + 34;
-        int nameBoxY = Math.max(top + 30, Math.min(preferredNameBoxY, saveY - 24));
-        return new EditLayout(left, top, panelWidth, panelHeight, nameBoxY, saveX, saveY, saveWidth, cancelX, cancelY, cancelWidth, showCoordinate);
+        int preferredNameBoxY = showCoordinate ? top + 48 : showTitle ? top + 34 : top + 10;
+        int nameBoxY = clamp(preferredNameBoxY, top + 8, Math.max(top + 8, saveY - 24));
+        return new EditLayout(left, top, panelWidth, panelHeight, nameBoxY, saveX, saveY, saveWidth, cancelX, cancelY, cancelWidth, showTitle, showCoordinate);
     }
 
     private String trimToWidth(String text, int maxWidth) {
@@ -161,6 +164,10 @@ public class BedNameEditScreen extends Screen {
         }
 
         return this.font.plainSubstrByWidth(text, maxWidth - ellipsisWidth) + "...";
+    }
+
+    private Component buttonLabel(String full, String compact, int width) {
+        return Component.literal(this.font.width(full) + 8 <= width ? full : compact);
     }
 
     private static int clamp(int value, int min, int max) {
@@ -179,6 +186,7 @@ public class BedNameEditScreen extends Screen {
         int cancelX,
         int cancelY,
         int cancelWidth,
+        boolean showTitle,
         boolean showCoordinate
     ) {
     }

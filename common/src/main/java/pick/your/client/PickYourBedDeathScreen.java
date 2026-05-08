@@ -83,13 +83,15 @@ public class PickYourBedDeathScreen extends Screen {
                 updateSelectedButton();
             });
             this.addRenderableWidget(this.searchBox);
+        } else if (!this.searchText.isEmpty()) {
+            this.searchText = "";
         }
 
         int filterX = header.filterX;
         RespawnFilter[] filters = RespawnFilter.values();
         for (int i = 0; i < filters.length; i++) {
             RespawnFilter value = filters[i];
-            this.addRenderableWidget(Button.builder(Component.literal(value.label), button -> {
+            this.addRenderableWidget(Button.builder(Component.literal(header.filterLabels[i]), button -> {
                 this.filter = value;
                 this.scrollIndex = 0;
                 updateSelectedButton();
@@ -98,12 +100,14 @@ public class PickYourBedDeathScreen extends Screen {
         }
 
         int buttonY = layout.buttonTop;
-        this.selectedRespawnButton = this.addRenderableWidget(Button.builder(Component.literal("Respawn at Selected"), button -> respawnAtSelected())
+        this.selectedRespawnButton = this.addRenderableWidget(Button.builder(buttonLabel("Respawn at Selected", "Selected", layout.primaryButtonWidth), button -> respawnAtSelected())
             .bounds(layout.primaryButtonX, buttonY, layout.primaryButtonWidth, 20)
             .build());
         this.exitButtons.add(this.selectedRespawnButton);
 
-        Component normalLabel = this.hardcore ? Component.translatable("deathScreen.spectate") : Component.literal("Respawn at Last Point");
+        Component normalLabel = this.hardcore
+            ? Component.translatable("deathScreen.spectate")
+            : buttonLabel("Respawn at Last Point", "Last Point", layout.secondaryButtonWidth);
         this.exitButtons.add(this.addRenderableWidget(Button.builder(normalLabel, button -> {
             if (this.minecraft.player != null) {
                 this.minecraft.player.respawn();
@@ -111,7 +115,7 @@ public class PickYourBedDeathScreen extends Screen {
             button.active = false;
         }).bounds(layout.secondaryButtonX, layout.secondaryButtonY, layout.secondaryButtonWidth, 20).build()));
 
-        this.exitButtons.add(this.addRenderableWidget(Button.builder(Component.translatable("deathScreen.titleScreen"), button -> handleExitToTitleScreen())
+        this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Title Screen", "Title", layout.titleButtonWidth), button -> handleExitToTitleScreen())
             .bounds(layout.titleButtonX, layout.titleButtonY, layout.titleButtonWidth, 20)
             .build()));
 
@@ -418,6 +422,10 @@ public class PickYourBedDeathScreen extends Screen {
         return this.searchText == null ? "" : this.searchText.trim().toLowerCase(Locale.ROOT);
     }
 
+    private Component buttonLabel(String full, String compact, int width) {
+        return Component.literal(this.font.width(full) + 8 <= width ? full : compact);
+    }
+
     private boolean insideList(int mouseX, int mouseY) {
         Layout layout = layout();
         return mouseX >= layout.panelLeft + 12
@@ -529,33 +537,55 @@ public class PickYourBedDeathScreen extends Screen {
         int right = layout.panelLeft + layout.panelWidth - 14;
         int availableWidth = Math.max(0, right - left);
         int gap = filterGap(availableWidth);
-        int targetFilterWidth = Math.max(0, availableWidth - gap - 64);
-        int[] filterWidths = filterWidths(targetFilterWidth, gap);
+        String[] filterLabels = filterLabels(availableWidth, gap);
+        int targetFilterWidth = Math.max(0, availableWidth - gap - 54);
+        int[] filterWidths = filterWidths(filterLabels, targetFilterWidth, gap);
         int filterWidth = totalWidth(filterWidths, gap);
         int searchWidth = availableWidth - filterWidth - gap;
 
         if (searchWidth < 54) {
             targetFilterWidth = Math.max(0, availableWidth - gap - 54);
-            filterWidths = filterWidths(targetFilterWidth, gap);
+            filterLabels = shortFilterLabels();
+            filterWidths = filterWidths(filterLabels, targetFilterWidth, gap);
             filterWidth = totalWidth(filterWidths, gap);
             searchWidth = availableWidth - filterWidth - gap;
         }
 
         if (searchWidth < 36) {
-            filterWidths = filterWidths(availableWidth, gap);
+            filterLabels = shortFilterLabels();
+            filterWidths = filterWidths(filterLabels, availableWidth, gap);
             filterWidth = totalWidth(filterWidths, gap);
             searchWidth = 0;
         }
 
         int filterX = right - filterWidth;
-        return new HeaderControls(left, filterX, layout.panelTop + 12, Math.max(0, searchWidth), gap, filterWidths);
+        return new HeaderControls(left, filterX, layout.panelTop + 12, Math.max(0, searchWidth), gap, filterWidths, filterLabels);
     }
 
-    private int[] filterWidths(int availableWidth, int gap) {
+    private String[] filterLabels(int availableWidth, int gap) {
+        String[] labels = new String[RespawnFilter.values().length];
+        int total = gap * Math.max(0, labels.length - 1);
+        for (int i = 0; i < RespawnFilter.values().length; i++) {
+            RespawnFilter filter = RespawnFilter.values()[i];
+            labels[i] = filter.label;
+            total += Math.max(filter.width, this.font.width(filter.label) + 12);
+        }
+        return total + gap + 54 <= availableWidth ? labels : shortFilterLabels();
+    }
+
+    private String[] shortFilterLabels() {
+        String[] labels = new String[RespawnFilter.values().length];
+        for (int i = 0; i < RespawnFilter.values().length; i++) {
+            labels[i] = RespawnFilter.values()[i].shortLabel;
+        }
+        return labels;
+    }
+
+    private int[] filterWidths(String[] labels, int availableWidth, int gap) {
         int[] widths = new int[RespawnFilter.values().length];
         int total = 0;
         for (int i = 0; i < RespawnFilter.values().length; i++) {
-            widths[i] = RespawnFilter.values()[i].width;
+            widths[i] = Math.max(RespawnFilter.values()[i].width, this.font.width(labels[i]) + 12);
             total += widths[i];
         }
         total += gap * (widths.length - 1);
@@ -563,7 +593,16 @@ public class PickYourBedDeathScreen extends Screen {
             return widths;
         }
 
-        int equalWidth = Math.max(22, (availableWidth - gap * (widths.length - 1)) / widths.length);
+        total = gap * (widths.length - 1);
+        for (int i = 0; i < widths.length; i++) {
+            widths[i] = this.font.width(labels[i]) + 8;
+            total += widths[i];
+        }
+        if (total <= availableWidth) {
+            return widths;
+        }
+
+        int equalWidth = Math.max(18, (availableWidth - gap * (widths.length - 1)) / widths.length);
         for (int i = 0; i < widths.length; i++) {
             widths[i] = equalWidth;
         }
@@ -617,7 +656,8 @@ public class PickYourBedDeathScreen extends Screen {
         int y,
         int searchWidth,
         int filterGap,
-        int[] filterWidths
+        int[] filterWidths,
+        String[] filterLabels
     ) {
     }
 
@@ -648,19 +688,19 @@ public class PickYourBedDeathScreen extends Screen {
     }
 
     private enum RespawnFilter {
-        ALL("All", 44) {
+        ALL("All", "All", 44) {
             @Override
             boolean accepts(RespawnEntryView entry) {
                 return true;
             }
         },
-        BEDS("Beds", 50) {
+        BEDS("Beds", "Bed", 50) {
             @Override
             boolean accepts(RespawnEntryView entry) {
                 return entry.type() == RespawnEntryType.BED;
             }
         },
-        OTHER("Other", 58) {
+        OTHER("Other", "Oth", 58) {
             @Override
             boolean accepts(RespawnEntryView entry) {
                 return entry.type().isOtherRespawn();
@@ -668,10 +708,12 @@ public class PickYourBedDeathScreen extends Screen {
         };
 
         final String label;
+        final String shortLabel;
         final int width;
 
-        RespawnFilter(String label, int width) {
+        RespawnFilter(String label, String shortLabel, int width) {
             this.label = label;
+            this.shortLabel = shortLabel;
             this.width = width;
         }
 

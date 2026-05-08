@@ -7,6 +7,7 @@
   "mixins": [
     "MixinBedBlock",
     "MixinBlock",
+    "MixinChunkMap",
     "MixinRespawnAnchorBlock"
   ],
   "client": [

@@ -9,7 +9,7 @@ public class PickYourBed implements ModInitializer {
     @Override
     public void onInitialize() {
         FabricPickYourBedNetworking.register();
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> PickYourBedServer.removeBrokenRespawnsAfterRespawn(newPlayer));
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> PickYourBedServer.handleAfterRespawn(newPlayer));
         CommonClass.init();
     }
 }

@@ -18,7 +18,7 @@ public class PickYourBed {
 
     private static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            PickYourBedServer.removeBrokenRespawnsAfterRespawn(player);
+            PickYourBedServer.handleAfterRespawn(player);
         }
     }
 }

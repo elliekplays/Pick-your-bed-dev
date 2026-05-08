@@ -22,10 +22,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PickYourBedServer {
     private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
+    private static final Map<UUID, RespawnSnapshot> PENDING_RESPAWN_RESTORES = new ConcurrentHashMap<>();
 
     private PickYourBedServer() {
     }
@@ -64,7 +68,12 @@ public final class PickYourBedServer {
         syncList(player);
     }
 
-    public static void removeBrokenRespawnsAfterRespawn(ServerPlayer player) {
+    public static void handleAfterRespawn(ServerPlayer player) {
+        restoreOriginalRespawn(player);
+        removeBrokenRespawnsAfterRespawn(player);
+    }
+
+    private static void removeBrokenRespawnsAfterRespawn(ServerPlayer player) {
         try {
             RespawnSavedData data = RespawnSavedData.get(player.server);
             int removed = data.removeEntries(player.getUUID(), entry -> isBrokenOrDestroyed(validate(player.server, entry)));
@@ -110,6 +119,7 @@ public final class PickYourBedServer {
         }
 
         ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, entry.dimension());
+        PENDING_RESPAWN_RESTORES.computeIfAbsent(player.getUUID(), unused -> RespawnSnapshot.capture(player));
         player.setRespawnPosition(dimension, entry.pos(), player.getYRot(), false, false);
         sendToClient(player, new SelectionResultPayload(true, ""));
     }
@@ -192,5 +202,34 @@ public final class PickYourBedServer {
 
     private static boolean isBrokenOrDestroyed(RespawnValidation validation) {
         return !validation.valid() && BROKEN_OR_DESTROYED.equals(validation.reason());
+    }
+
+    private static void restoreOriginalRespawn(ServerPlayer player) {
+        RespawnSnapshot snapshot = PENDING_RESPAWN_RESTORES.remove(player.getUUID());
+        if (snapshot == null) {
+            return;
+        }
+
+        try {
+            snapshot.restore(player);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to restore original respawn point for {}", player.getGameProfile().getName(), exception);
+        }
+    }
+
+    private record RespawnSnapshot(ResourceKey<Level> dimension, BlockPos position, float angle, boolean forced) {
+        static RespawnSnapshot capture(ServerPlayer player) {
+            BlockPos position = player.getRespawnPosition();
+            return new RespawnSnapshot(
+                player.getRespawnDimension(),
+                position == null ? null : position.immutable(),
+                player.getRespawnAngle(),
+                player.isRespawnForced()
+            );
+        }
+
+        void restore(ServerPlayer player) {
+            player.setRespawnPosition(this.dimension, this.position, this.angle, this.forced, false);
+        }
     }
 }

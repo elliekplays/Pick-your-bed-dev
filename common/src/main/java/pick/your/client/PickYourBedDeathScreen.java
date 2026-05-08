@@ -8,6 +8,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.GenericMessageScreen;
@@ -20,6 +21,7 @@ import net.minecraft.network.chat.Style;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class PickYourBedDeathScreen extends Screen {
     private static final int BACKGROUND_TOP = 0x60500000;
@@ -39,7 +41,9 @@ public class PickYourBedDeathScreen extends Screen {
     private final List<Button> exitButtons = Lists.newArrayList();
     private Component deathScore = CommonComponents.EMPTY;
     private Button selectedRespawnButton;
+    private EditBox searchBox;
     private RespawnFilter filter = RespawnFilter.ALL;
+    private String searchText = "";
     private long selectedId = -1L;
     private int delayTicker;
     private int refreshTicker;
@@ -62,21 +66,35 @@ public class PickYourBedDeathScreen extends Screen {
         }
         this.refreshTicker = 0;
         this.exitButtons.clear();
+        this.searchBox = null;
         this.clearWidgets();
         PickYourBedClient.requestEntries();
 
         Layout layout = layout();
-        int filterY = layout.panelTop + 12;
-        int filterX = layout.panelLeft + 14;
-        int[] filterWidths = filterWidths(layout.panelWidth - 28);
+        HeaderControls header = headerControls(layout);
+        if (header.searchWidth >= 36) {
+            this.searchBox = new EditBox(this.font, header.searchX, header.y, header.searchWidth, 18, Component.literal("Search"));
+            this.searchBox.setMaxLength(32);
+            this.searchBox.setValue(this.searchText);
+            this.searchBox.setHint(Component.literal("Search"));
+            this.searchBox.setResponder(value -> {
+                this.searchText = value;
+                this.scrollIndex = 0;
+                updateSelectedButton();
+            });
+            this.addRenderableWidget(this.searchBox);
+        }
+
+        int filterX = header.filterX;
         RespawnFilter[] filters = RespawnFilter.values();
         for (int i = 0; i < filters.length; i++) {
             RespawnFilter value = filters[i];
             this.addRenderableWidget(Button.builder(Component.literal(value.label), button -> {
                 this.filter = value;
                 this.scrollIndex = 0;
-            }).bounds(filterX, filterY, filterWidths[i], 18).build());
-            filterX += filterWidths[i] + layout.filterGap;
+                updateSelectedButton();
+            }).bounds(filterX, header.y, header.filterWidths[i], 18).build());
+            filterX += header.filterWidths[i] + header.filterGap;
         }
 
         int buttonY = layout.buttonTop;
@@ -220,7 +238,9 @@ public class PickYourBedDeathScreen extends Screen {
 
         List<RespawnEntryView> entries = filteredEntries();
         if (entries.isEmpty()) {
-            String message = this.filter == RespawnFilter.BEDS ? "No beds recorded" : this.filter == RespawnFilter.OTHER ? "No other respawns recorded" : "No respawns recorded";
+            String message = searchQuery().isEmpty()
+                ? this.filter == RespawnFilter.BEDS ? "No beds recorded" : this.filter == RespawnFilter.OTHER ? "No other respawns recorded" : "No respawns recorded"
+                : "No respawns match search";
             graphics.drawCenteredString(this.font, Component.literal(message), left + width / 2, top + height / 2, 0xFF8F99A3);
             return null;
         }
@@ -371,8 +391,10 @@ public class PickYourBedDeathScreen extends Screen {
             return;
         }
 
+        boolean selectionVisible = filteredEntries().stream().anyMatch(entry -> entry.id() == this.selectedId);
         boolean canRespawn = !this.hardcore
             && !PickYourBedClient.waitingForSelection()
+            && selectionVisible
             && PickYourBedClient.find(this.selectedId).filter(RespawnEntryView::valid).isPresent();
         this.selectedRespawnButton.active = this.delayTicker >= 20 && canRespawn;
     }
@@ -385,9 +407,15 @@ public class PickYourBedDeathScreen extends Screen {
     }
 
     private List<RespawnEntryView> filteredEntries() {
+        String query = searchQuery();
         return PickYourBedClient.entries().stream()
             .filter(entry -> this.filter.accepts(entry))
+            .filter(entry -> query.isEmpty() || entry.name().toLowerCase(Locale.ROOT).contains(query))
             .toList();
+    }
+
+    private String searchQuery() {
+        return this.searchText == null ? "" : this.searchText.trim().toLowerCase(Locale.ROOT);
     }
 
     private boolean insideList(int mouseX, int mouseY) {
@@ -471,7 +499,6 @@ public class PickYourBedDeathScreen extends Screen {
         int titleY = compact ? 18 : 48;
         int causeY = compact ? 42 : 70;
         int scoreY = compact ? 54 : 84;
-        int filterGap = filterGap(panelWidth - 28);
         return new Layout(
             panelLeft,
             panelTop,
@@ -479,7 +506,6 @@ public class PickYourBedDeathScreen extends Screen {
             panelHeight,
             rowsTop,
             visibleRows,
-            filterGap,
             buttonTop,
             primaryButtonX,
             primaryButtonWidth,
@@ -498,14 +524,40 @@ public class PickYourBedDeathScreen extends Screen {
         );
     }
 
-    private int[] filterWidths(int availableWidth) {
+    private HeaderControls headerControls(Layout layout) {
+        int left = layout.panelLeft + 14;
+        int right = layout.panelLeft + layout.panelWidth - 14;
+        int availableWidth = Math.max(0, right - left);
+        int gap = filterGap(availableWidth);
+        int targetFilterWidth = Math.max(0, availableWidth - gap - 64);
+        int[] filterWidths = filterWidths(targetFilterWidth, gap);
+        int filterWidth = totalWidth(filterWidths, gap);
+        int searchWidth = availableWidth - filterWidth - gap;
+
+        if (searchWidth < 54) {
+            targetFilterWidth = Math.max(0, availableWidth - gap - 54);
+            filterWidths = filterWidths(targetFilterWidth, gap);
+            filterWidth = totalWidth(filterWidths, gap);
+            searchWidth = availableWidth - filterWidth - gap;
+        }
+
+        if (searchWidth < 36) {
+            filterWidths = filterWidths(availableWidth, gap);
+            filterWidth = totalWidth(filterWidths, gap);
+            searchWidth = 0;
+        }
+
+        int filterX = right - filterWidth;
+        return new HeaderControls(left, filterX, layout.panelTop + 12, Math.max(0, searchWidth), gap, filterWidths);
+    }
+
+    private int[] filterWidths(int availableWidth, int gap) {
         int[] widths = new int[RespawnFilter.values().length];
         int total = 0;
         for (int i = 0; i < RespawnFilter.values().length; i++) {
             widths[i] = RespawnFilter.values()[i].width;
             total += widths[i];
         }
-        int gap = filterGap(availableWidth);
         total += gap * (widths.length - 1);
         if (total <= availableWidth) {
             return widths;
@@ -516,6 +568,14 @@ public class PickYourBedDeathScreen extends Screen {
             widths[i] = equalWidth;
         }
         return widths;
+    }
+
+    private int totalWidth(int[] widths, int gap) {
+        int total = gap * Math.max(0, widths.length - 1);
+        for (int width : widths) {
+            total += width;
+        }
+        return total;
     }
 
     private int filterGap(int availableWidth) {
@@ -533,7 +593,6 @@ public class PickYourBedDeathScreen extends Screen {
         int panelHeight,
         int rowsTop,
         int visibleRows,
-        int filterGap,
         int buttonTop,
         int primaryButtonX,
         int primaryButtonWidth,
@@ -549,6 +608,16 @@ public class PickYourBedDeathScreen extends Screen {
         boolean showDeathTitle,
         boolean showCause,
         boolean showScore
+    ) {
+    }
+
+    private record HeaderControls(
+        int searchX,
+        int filterX,
+        int y,
+        int searchWidth,
+        int filterGap,
+        int[] filterWidths
     ) {
     }
 

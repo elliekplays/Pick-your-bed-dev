@@ -10,8 +10,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class BedNameEditScreen extends Screen {
-    private static final int BACKGROUND_TOP = 0x60500000;
-    private static final int BACKGROUND_BOTTOM = 0xA0803030;
+    private static final int BACKGROUND_TOP = 0x70000000;
+    private static final int BACKGROUND_BOTTOM = 0xA8000000;
     private static final int PANEL_COLOR = 0xD82D343E;
     private static final int PANEL_HEADER = 0xCC343D49;
     private static final int PANEL_BORDER = 0xD067717E;

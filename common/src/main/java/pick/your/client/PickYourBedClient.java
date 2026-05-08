@@ -7,6 +7,8 @@ import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.RenameRespawnPayload;
 import pick.your.network.payload.SelectRespawnPayload;
 import pick.your.network.payload.SelectionResultPayload;
+import pick.your.network.payload.SurvivalStatsPayload;
+import pick.your.network.payload.SurvivalStatsRequestPayload;
 import pick.your.platform.Services;
 import pick.your.respawn.RespawnEntry;
 import pick.your.respawn.RespawnEntryView;
@@ -22,6 +24,7 @@ import java.util.Optional;
 public final class PickYourBedClient {
     private static List<RespawnEntryView> entries = List.of();
     private static boolean waitingForSelection;
+    private static SurvivalStatsSnapshot survivalStats = SurvivalStatsSnapshot.vanilla();
 
     private PickYourBedClient() {
     }
@@ -36,6 +39,10 @@ public final class PickYourBedClient {
 
     public static void requestEntries() {
         sendToServer("list request", new BedListRequestPayload());
+    }
+
+    public static void requestSurvivalStats() {
+        sendToServer("survival stats request", new SurvivalStatsRequestPayload());
     }
 
     public static void handleList(BedListPayload payload) {
@@ -92,6 +99,18 @@ public final class PickYourBedClient {
         }
     }
 
+    public static void handleSurvivalStats(SurvivalStatsPayload payload) {
+        survivalStats = new SurvivalStatsSnapshot(payload.useModStats(), Math.max(0L, payload.playTicks()));
+    }
+
+    public static void resetSurvivalStats() {
+        survivalStats = SurvivalStatsSnapshot.vanilla();
+    }
+
+    public static SurvivalStatsSnapshot survivalStats() {
+        return survivalStats;
+    }
+
     public static boolean waitingForSelection() {
         return waitingForSelection;
     }
@@ -120,6 +139,12 @@ public final class PickYourBedClient {
         } catch (RuntimeException exception) {
             Constants.LOG.error("Failed to send {} packet to the server", action, exception);
             return false;
+        }
+    }
+
+    public record SurvivalStatsSnapshot(boolean useModStats, long playTicks) {
+        static SurvivalStatsSnapshot vanilla() {
+            return new SurvivalStatsSnapshot(false, 0L);
         }
     }
 }

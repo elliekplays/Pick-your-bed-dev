@@ -18,6 +18,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.stats.Stats;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +36,7 @@ public class PickYourBedDeathScreen extends Screen {
     private static final int ROW_HOVER = 0xD947525F;
     private static final int INVALID_ROW = 0x993A3F45;
     private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
+    private static final String HARDCORE_QUOTE = "\"Another story of a legend comes to an end\"";
 
     private final Component causeOfDeath;
     private final boolean hardcore;
@@ -58,6 +60,7 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     protected void init() {
+        boolean firstInit = !this.initializedOnce;
         if (this.initializedOnce) {
             this.delayTicker = Math.max(this.delayTicker, 20);
         } else {
@@ -73,6 +76,9 @@ public class PickYourBedDeathScreen extends Screen {
         Layout layout = layout();
         if (this.hardcore) {
             this.searchText = "";
+            if (firstInit) {
+                PickYourBedClient.resetSurvivalStats();
+            }
             HardcoreLayout hardcoreLayout = hardcoreLayout();
             this.exitButtons.add(this.addRenderableWidget(Button.builder(Component.literal("Spectate"), button -> {
                 if (this.minecraft.player != null) {
@@ -84,6 +90,7 @@ public class PickYourBedDeathScreen extends Screen {
             this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Exit to Main Menu", "Exit", hardcoreLayout.buttonWidth), button -> handleExitToTitleScreen())
                 .bounds(hardcoreLayout.buttonX, hardcoreLayout.exitY, hardcoreLayout.buttonWidth, 20)
                 .build()));
+            PickYourBedClient.requestSurvivalStats();
         } else {
             PickYourBedClient.requestEntries();
             HeaderControls header = headerControls(layout);
@@ -155,9 +162,13 @@ public class PickYourBedDeathScreen extends Screen {
         if (this.delayTicker == 20) {
             setButtonsActive(true);
         }
-        if (!this.hardcore && this.refreshTicker >= 40) {
+        if (this.refreshTicker >= 40) {
             this.refreshTicker = 0;
-            PickYourBedClient.requestEntries();
+            if (this.hardcore) {
+                PickYourBedClient.requestSurvivalStats();
+            } else {
+                PickYourBedClient.requestEntries();
+            }
         }
         updateSelectedButton();
     }
@@ -180,9 +191,7 @@ public class PickYourBedDeathScreen extends Screen {
                 graphics.drawCenteredString(this.font, this.causeOfDeath, this.width / 2, hardcoreLayout.causeY, 0xFFE8EDF2);
             }
             graphics.drawCenteredString(this.font, Component.literal("Hardcore Mode"), this.width / 2, hardcoreLayout.hardcoreY, 0xFFFF5555);
-            if (hardcoreLayout.showScore) {
-                graphics.drawCenteredString(this.font, this.deathScore, this.width / 2, hardcoreLayout.scoreY, 0xFFE8EDF2);
-            }
+            renderHardcoreInfo(graphics, hardcoreLayout);
 
             renderWidgets(graphics, mouseX, mouseY, partialTick);
             if (hardcoreLayout.showCause && this.causeOfDeath != null && mouseY > hardcoreLayout.causeY && mouseY < hardcoreLayout.causeY + 9) {
@@ -355,6 +364,39 @@ public class PickYourBedDeathScreen extends Screen {
         return tooltipEntry;
     }
 
+    private void renderHardcoreInfo(GuiGraphics graphics, HardcoreLayout layout) {
+        if (!layout.showInfoPanel) {
+            return;
+        }
+
+        HardcoreStats stats = hardcoreStats();
+        int left = layout.infoLeft;
+        int top = layout.infoTop;
+        int width = layout.infoWidth;
+        int height = layout.infoHeight;
+        graphics.fill(left, top, left + width, top + height, 0xB820242B);
+        graphics.fill(left + 1, top + 1, left + width - 1, top + 18, 0xAA2F1218);
+        graphics.fill(left, top, left + width, top + 1, 0xFFFF5555);
+        graphics.fill(left, top + height - 1, left + width, top + height, 0xAA883C45);
+        graphics.fill(left, top, left + 1, top + height, 0xAA883C45);
+        graphics.fill(left + width - 1, top, left + width, top + height, 0xAA883C45);
+
+        graphics.drawString(this.font, "Final Record", left + 12, top + 6, 0xFFFFE1E1, false);
+        String daysLabel = width >= 190 ? "Minecraft days" : "Days";
+        String timeLabel = width >= 190 ? "Play time" : "Time";
+        int valueWidth = Math.max(32, width - 24 - Math.max(this.font.width(daysLabel), this.font.width(timeLabel)) - 10);
+        String daysValue = trimToWidth(stats.minecraftDays(), valueWidth);
+        String timeValue = trimToWidth(stats.playTime(), valueWidth);
+        graphics.drawString(this.font, daysLabel, left + 12, top + 25, 0xFFABB4BF, false);
+        graphics.drawString(this.font, daysValue, left + width - 12 - this.font.width(daysValue), top + 25, 0xFFFFFFFF, false);
+        graphics.drawString(this.font, timeLabel, left + 12, top + 37, 0xFFABB4BF, false);
+        graphics.drawString(this.font, timeValue, left + width - 12 - this.font.width(timeValue), top + 37, 0xFFFFFFFF, false);
+
+        if (layout.showQuote) {
+            graphics.drawCenteredString(this.font, Component.literal(trimToWidth(HARDCORE_QUOTE, width - 24)), left + width / 2, top + height - 17, 0xFFFFB6BE);
+        }
+    }
+
     private void drawPencil(GuiGraphics graphics, int x, int y, int color) {
         graphics.fill(x + 3, y + 9, x + 5, y + 11, 0xFFC6924E);
         graphics.fill(x + 5, y + 7, x + 7, y + 9, color);
@@ -480,6 +522,41 @@ public class PickYourBedDeathScreen extends Screen {
         return Component.literal(this.font.width(full) + 8 <= width ? full : compact);
     }
 
+    private HardcoreStats hardcoreStats() {
+        PickYourBedClient.SurvivalStatsSnapshot snapshot = PickYourBedClient.survivalStats();
+        long playTicks = snapshot.useModStats() ? snapshot.playTicks() : vanillaPlayTicks();
+        return new HardcoreStats(formatMinecraftDays(playTicks), formatPlayTime(playTicks));
+    }
+
+    private long vanillaPlayTicks() {
+        long playTicks = 0L;
+        if (this.minecraft != null && this.minecraft.player != null) {
+            playTicks = Math.max(0, this.minecraft.player.getStats().getValue(Stats.CUSTOM, Stats.PLAY_TIME));
+            playTicks = Math.max(playTicks, this.minecraft.player.tickCount);
+        }
+
+        return playTicks;
+    }
+
+    private String formatMinecraftDays(long ticks) {
+        double days = ticks / 24000.0D;
+        return String.format(Locale.ROOT, "%.1f", days);
+    }
+
+    private String formatPlayTime(long ticks) {
+        long totalSeconds = Math.max(0, ticks / 20L);
+        long hours = totalSeconds / 3600L;
+        long minutes = (totalSeconds % 3600L) / 60L;
+        long seconds = totalSeconds % 60L;
+        if (hours > 0L) {
+            return String.format(Locale.ROOT, "%dh %02dm %02ds", hours, minutes, seconds);
+        }
+        if (minutes > 0L) {
+            return String.format(Locale.ROOT, "%dm %02ds", minutes, seconds);
+        }
+        return seconds + "s";
+    }
+
     private boolean insideList(int mouseX, int mouseY) {
         Layout layout = layout();
         return mouseX >= layout.panelLeft + 12
@@ -598,9 +675,9 @@ public class PickYourBedDeathScreen extends Screen {
         int exitY = Math.max(8, screenHeight - 34);
         int spectateY = Math.max(8, exitY - 24);
         int textBottom = spectateY - 8;
-        boolean compact = screenHeight < 170 || screenWidth < 260;
-        int titleY = compact ? 16 : 48;
-        int causeY = compact ? 38 : 76;
+        boolean compact = screenHeight < 190 || screenWidth < 260;
+        int titleY = compact ? 16 : 36;
+        int causeY = compact ? 38 : 62;
         boolean showDeathTitle = textBottom >= titleY + 18 && screenHeight >= 104;
         if (!showDeathTitle) {
             causeY = 14;
@@ -613,9 +690,35 @@ public class PickYourBedDeathScreen extends Screen {
             showCause = false;
         }
 
-        int scoreY = hardcoreY + 14;
-        boolean showScore = textBottom >= scoreY + 9;
-        return new HardcoreLayout(buttonX, buttonWidth, spectateY, exitY, titleY, causeY, hardcoreY, scoreY, showDeathTitle, showCause, showScore);
+        int infoWidth = clamp(screenWidth - 48, 154, 340);
+        if (screenWidth < infoWidth + 16) {
+            infoWidth = Math.max(110, screenWidth - 16);
+        }
+        int infoLeft = (screenWidth - infoWidth) / 2;
+        int infoAreaTop = hardcoreY + 16;
+        int infoAreaBottom = spectateY - 10;
+        int infoAvailable = infoAreaBottom - infoAreaTop;
+        boolean showInfoPanel = infoAvailable >= 52;
+        int infoHeight = showInfoPanel ? Math.min(78, Math.max(52, infoAvailable)) : 0;
+        int infoTop = showInfoPanel ? infoAreaTop + Math.max(0, (infoAvailable - infoHeight) / 2) : 0;
+        boolean showQuote = infoHeight >= 68;
+        return new HardcoreLayout(
+            buttonX,
+            buttonWidth,
+            spectateY,
+            exitY,
+            titleY,
+            causeY,
+            hardcoreY,
+            infoLeft,
+            infoTop,
+            infoWidth,
+            infoHeight,
+            showDeathTitle,
+            showCause,
+            showInfoPanel,
+            showQuote
+        );
     }
 
     private HeaderControls headerControls(Layout layout) {
@@ -755,10 +858,20 @@ public class PickYourBedDeathScreen extends Screen {
         int titleY,
         int causeY,
         int hardcoreY,
-        int scoreY,
+        int infoLeft,
+        int infoTop,
+        int infoWidth,
+        int infoHeight,
         boolean showDeathTitle,
         boolean showCause,
-        boolean showScore
+        boolean showInfoPanel,
+        boolean showQuote
+    ) {
+    }
+
+    private record HardcoreStats(
+        String minecraftDays,
+        String playTime
     ) {
     }
 

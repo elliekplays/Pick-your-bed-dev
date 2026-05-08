@@ -4,6 +4,7 @@ import pick.your.client.PickYourBedClient;
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.SelectionResultPayload;
+import pick.your.network.payload.SurvivalStatsPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
@@ -16,6 +17,8 @@ public class FabricPickYourBedClient implements ClientModInitializer {
             (payload, context) -> runOnClient(context, "open editor", () -> PickYourBedClient.handleOpenEditor(payload)));
         ClientPlayNetworking.registerGlobalReceiver(SelectionResultPayload.TYPE,
             (payload, context) -> runOnClient(context, "selection result", () -> PickYourBedClient.handleSelectionResult(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(SurvivalStatsPayload.TYPE,
+            (payload, context) -> runOnClient(context, "survival stats", () -> PickYourBedClient.handleSurvivalStats(payload)));
     }
 
     private static void runOnClient(ClientPlayNetworking.Context context, String action, Runnable handler) {

@@ -4,6 +4,7 @@ import pick.your.Constants;
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.SelectionResultPayload;
+import pick.your.network.payload.SurvivalStatsPayload;
 import pick.your.platform.Services;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -66,6 +67,33 @@ public final class PickYourBedServer {
 
     public static void handleListRequest(ServerPlayer player) {
         syncList(player);
+    }
+
+    public static void handleSurvivalStatsRequest(ServerPlayer player) {
+        SurvivalStatsSavedData data = SurvivalStatsSavedData.get(player.server);
+        data.initializeForServer(player.server);
+        boolean useModStats = data.modTimerEnabled();
+        sendToClient(player, new SurvivalStatsPayload(useModStats, useModStats ? data.playTicks(player.getUUID()) : 0L));
+    }
+
+    public static void handleServerStarted(MinecraftServer server) {
+        SurvivalStatsSavedData.get(server).initializeForServer(server);
+    }
+
+    public static void handleServerTick(MinecraftServer server) {
+        SurvivalStatsSavedData data = SurvivalStatsSavedData.get(server);
+        data.initializeForServer(server);
+        if (!data.modTimerEnabled()) {
+            return;
+        }
+
+        boolean changed = false;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            changed |= data.tickPlayer(player);
+        }
+        if (changed && server.getTickCount() % 100 == 0) {
+            data.setDirty();
+        }
     }
 
     public static void handleAfterRespawn(ServerPlayer player) {

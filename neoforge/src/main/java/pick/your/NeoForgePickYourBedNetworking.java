@@ -7,6 +7,8 @@ import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.RenameRespawnPayload;
 import pick.your.network.payload.SelectRespawnPayload;
 import pick.your.network.payload.SelectionResultPayload;
+import pick.your.network.payload.SurvivalStatsPayload;
+import pick.your.network.payload.SurvivalStatsRequestPayload;
 import pick.your.respawn.PickYourBedServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -29,10 +31,13 @@ public final class NeoForgePickYourBedNetworking {
             (payload, context) -> handleServer(context, "rename", player -> PickYourBedServer.handleRename(player, payload.id(), payload.name())));
         registrar.playToServer(SelectRespawnPayload.TYPE, SelectRespawnPayload.STREAM_CODEC,
             (payload, context) -> handleServer(context, "select", player -> PickYourBedServer.handleSelect(player, payload.id())));
+        registrar.playToServer(SurvivalStatsRequestPayload.TYPE, SurvivalStatsRequestPayload.STREAM_CODEC,
+            (payload, context) -> handleServer(context, "survival stats request", PickYourBedServer::handleSurvivalStatsRequest));
 
         registrar.playToClient(BedListPayload.TYPE, BedListPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleList);
         registrar.playToClient(OpenEditorPayload.TYPE, OpenEditorPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleOpenEditor);
         registrar.playToClient(SelectionResultPayload.TYPE, SelectionResultPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleSelectionResult);
+        registrar.playToClient(SurvivalStatsPayload.TYPE, SurvivalStatsPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleSurvivalStats);
     }
 
     private static void handleServer(IPayloadContext context, String action, Consumer<ServerPlayer> handler) {
@@ -57,6 +62,10 @@ public final class NeoForgePickYourBedNetworking {
 
     private static void handleSelectionResult(SelectionResultPayload payload, IPayloadContext context) {
         handleClient(context, "selection result", () -> PickYourBedClient.handleSelectionResult(payload));
+    }
+
+    private static void handleSurvivalStats(SurvivalStatsPayload payload, IPayloadContext context) {
+        handleClient(context, "survival stats", () -> PickYourBedClient.handleSurvivalStats(payload));
     }
 
     private static void handleClient(IPayloadContext context, String action, Runnable handler) {

@@ -22,16 +22,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PickYourBedDeathScreen extends Screen {
-    private static final int BACKGROUND_TOP = 0xFF171A20;
-    private static final int BACKGROUND_BOTTOM = 0xFF232A32;
-    private static final int PANEL_COLOR = 0xFF2D343E;
-    private static final int PANEL_HEADER = 0xFF343D49;
-    private static final int PANEL_BORDER = 0xFF67717E;
+    private static final int BACKGROUND_TOP = 0x60500000;
+    private static final int BACKGROUND_BOTTOM = 0xA0803030;
+    private static final int PANEL_COLOR = 0xD82D343E;
+    private static final int PANEL_HEADER = 0xCC343D49;
+    private static final int PANEL_BORDER = 0xD067717E;
     private static final int ACCENT = 0xFF80C7D4;
-    private static final int SELECTED = 0xFF2F6D79;
-    private static final int ROW = 0xFF3B444F;
-    private static final int ROW_HOVER = 0xFF47525F;
-    private static final int INVALID_ROW = 0xFF3A3F45;
+    private static final int SELECTED = 0xE02F6D79;
+    private static final int ROW = 0xCC3B444F;
+    private static final int ROW_HOVER = 0xD947525F;
+    private static final int INVALID_ROW = 0x993A3F45;
+    private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
 
     private final Component causeOfDeath;
     private final boolean hardcore;
@@ -43,6 +44,7 @@ public class PickYourBedDeathScreen extends Screen {
     private int delayTicker;
     private int refreshTicker;
     private int scrollIndex;
+    private boolean initializedOnce;
 
     public PickYourBedDeathScreen(Component causeOfDeath, boolean hardcore) {
         super(Component.translatable(hardcore ? "deathScreen.title.hardcore" : "deathScreen.title"));
@@ -52,28 +54,34 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     protected void init() {
-        this.delayTicker = 0;
+        if (this.initializedOnce) {
+            this.delayTicker = Math.max(this.delayTicker, 20);
+        } else {
+            this.delayTicker = 0;
+            this.initializedOnce = true;
+        }
         this.refreshTicker = 0;
         this.exitButtons.clear();
         this.clearWidgets();
         PickYourBedClient.requestEntries();
 
-        int panelWidth = panelWidth();
-        int panelLeft = (this.width - panelWidth) / 2;
-        int panelTop = listTop();
-        int filterY = panelTop + 12;
-        int filterX = panelLeft + 14;
-        for (RespawnFilter value : RespawnFilter.values()) {
+        Layout layout = layout();
+        int filterY = layout.panelTop + 12;
+        int filterX = layout.panelLeft + 14;
+        int[] filterWidths = filterWidths(layout.panelWidth - 28);
+        RespawnFilter[] filters = RespawnFilter.values();
+        for (int i = 0; i < filters.length; i++) {
+            RespawnFilter value = filters[i];
             this.addRenderableWidget(Button.builder(Component.literal(value.label), button -> {
                 this.filter = value;
                 this.scrollIndex = 0;
-            }).bounds(filterX, filterY, value.width, 18).build());
-            filterX += value.width + 4;
+            }).bounds(filterX, filterY, filterWidths[i], 18).build());
+            filterX += filterWidths[i] + layout.filterGap;
         }
 
-        int buttonY = Math.min(this.height - 56, panelTop + panelHeight() + 14);
+        int buttonY = layout.buttonTop;
         this.selectedRespawnButton = this.addRenderableWidget(Button.builder(Component.literal("Respawn at Selected"), button -> respawnAtSelected())
-            .bounds(this.width / 2 - 154, buttonY, 150, 20)
+            .bounds(layout.primaryButtonX, buttonY, layout.primaryButtonWidth, 20)
             .build());
         this.exitButtons.add(this.selectedRespawnButton);
 
@@ -83,13 +91,13 @@ public class PickYourBedDeathScreen extends Screen {
                 this.minecraft.player.respawn();
             }
             button.active = false;
-        }).bounds(this.width / 2 + 4, buttonY, 150, 20).build()));
+        }).bounds(layout.secondaryButtonX, layout.secondaryButtonY, layout.secondaryButtonWidth, 20).build()));
 
         this.exitButtons.add(this.addRenderableWidget(Button.builder(Component.translatable("deathScreen.titleScreen"), button -> handleExitToTitleScreen())
-            .bounds(this.width / 2 - 75, buttonY + 24, 150, 20)
+            .bounds(layout.titleButtonX, layout.titleButtonY, layout.titleButtonWidth, 20)
             .build()));
 
-        setButtonsActive(false);
+        setButtonsActive(this.delayTicker >= 20);
         updateSelectedButton();
         if (this.minecraft.player != null) {
             this.deathScore = Component.translatable(
@@ -122,22 +130,27 @@ public class PickYourBedDeathScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
+        Layout layout = layout();
 
-        graphics.pose().pushPose();
-        graphics.pose().scale(2.0F, 2.0F, 2.0F);
-        graphics.drawCenteredString(this.font, this.title, this.width / 4, 24, 0xFFFFFFFF);
-        graphics.pose().popPose();
-
-        if (this.causeOfDeath != null) {
-            graphics.drawCenteredString(this.font, this.causeOfDeath, this.width / 2, 70, 0xFFE8EDF2);
+        if (layout.showDeathTitle) {
+            graphics.pose().pushPose();
+            graphics.pose().scale(2.0F, 2.0F, 2.0F);
+            graphics.drawCenteredString(this.font, this.title, this.width / 4, layout.titleY / 2, 0xFFFFFFFF);
+            graphics.pose().popPose();
         }
-        graphics.drawCenteredString(this.font, this.deathScore, this.width / 2, 84, 0xFFE8EDF2);
 
-        RespawnEntryView tooltipEntry = renderList(graphics, mouseX, mouseY);
+        if (layout.showCause && this.causeOfDeath != null) {
+            graphics.drawCenteredString(this.font, this.causeOfDeath, this.width / 2, layout.causeY, 0xFFE8EDF2);
+        }
+        if (layout.showScore) {
+            graphics.drawCenteredString(this.font, this.deathScore, this.width / 2, layout.scoreY, 0xFFE8EDF2);
+        }
+
+        RespawnEntryView tooltipEntry = renderList(graphics, mouseX, mouseY, layout);
         renderWidgets(graphics, mouseX, mouseY, partialTick);
         renderEntryTooltip(graphics, tooltipEntry, mouseX, mouseY);
 
-        if (this.causeOfDeath != null && mouseY > 70 && mouseY < 79) {
+        if (layout.showCause && this.causeOfDeath != null && mouseY > layout.causeY && mouseY < layout.causeY + 9) {
             Style style = this.getClickedComponentStyleAt(mouseX);
             graphics.renderComponentHoverEffect(this.font, style, mouseX, mouseY);
         }
@@ -150,7 +163,8 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.causeOfDeath != null && mouseY > 70.0 && mouseY < 79.0) {
+        Layout layout = layout();
+        if (layout.showCause && this.causeOfDeath != null && mouseY > layout.causeY && mouseY < layout.causeY + 9) {
             Style style = this.getClickedComponentStyleAt((int)mouseX);
             if (style != null && style.getClickEvent() != null && style.getClickEvent().getAction() == ClickEvent.Action.OPEN_URL) {
                 this.handleComponentClicked(style);
@@ -160,7 +174,7 @@ public class PickYourBedDeathScreen extends Screen {
 
         RespawnEntryView hovered = hoveredEntry((int)mouseX, (int)mouseY);
         if (hovered != null && hovered.valid()) {
-            int iconLeft = panelLeft() + panelWidth() - 30;
+            int iconLeft = layout.panelLeft + layout.panelWidth - 30;
             int rowY = rowYFor(hovered);
             if (mouseX >= iconLeft && mouseX <= iconLeft + 18 && mouseY >= rowY + 3 && mouseY <= rowY + 21) {
                 this.minecraft.setScreen(new BedNameEditScreen(this, hovered));
@@ -178,7 +192,7 @@ public class PickYourBedDeathScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (insideList((int)mouseX, (int)mouseY)) {
-            int max = Math.max(0, filteredEntries().size() - visibleRows());
+            int max = Math.max(0, filteredEntries().size() - layout().visibleRows);
             this.scrollIndex = Math.max(0, Math.min(max, this.scrollIndex - (int)Math.signum(scrollY)));
             return true;
         }
@@ -190,11 +204,11 @@ public class PickYourBedDeathScreen extends Screen {
         return false;
     }
 
-    private RespawnEntryView renderList(GuiGraphics graphics, int mouseX, int mouseY) {
-        int left = panelLeft();
-        int top = listTop();
-        int width = panelWidth();
-        int height = panelHeight();
+    private RespawnEntryView renderList(GuiGraphics graphics, int mouseX, int mouseY, Layout layout) {
+        int left = layout.panelLeft;
+        int top = layout.panelTop;
+        int width = layout.panelWidth;
+        int height = layout.panelHeight;
         graphics.fill(left, top, left + width, top + height, PANEL_COLOR);
         graphics.fill(left + 1, top + 1, left + width - 1, top + 30, PANEL_HEADER);
         graphics.fill(left, top, left + width, top + 1, ACCENT);
@@ -211,10 +225,15 @@ public class PickYourBedDeathScreen extends Screen {
             return null;
         }
 
-        int visible = visibleRows();
+        int visible = layout.visibleRows;
+        if (visible <= 0) {
+            graphics.drawCenteredString(this.font, Component.literal("Window too small"), left + width / 2, top + height / 2, 0xFF8F99A3);
+            return null;
+        }
+
         int max = Math.max(0, entries.size() - visible);
         this.scrollIndex = Math.max(0, Math.min(max, this.scrollIndex));
-        int startY = rowsTop();
+        int startY = layout.rowsTop;
         RespawnEntryView tooltipEntry = null;
         for (int i = 0; i < visible && i + this.scrollIndex < entries.size(); i++) {
             RespawnEntryView entry = entries.get(i + this.scrollIndex);
@@ -227,15 +246,18 @@ public class PickYourBedDeathScreen extends Screen {
 
             int textColor = entry.valid() ? 0xFFF2F5F7 : 0xFF848B92;
             int subColor = entry.valid() ? 0xFFAAB5BF : 0xFF6F767D;
-            graphics.drawString(this.font, entry.name(), left + 22, rowY + 4, textColor, false);
+            int textMaxWidth = width - 74;
+            graphics.drawString(this.font, trimToWidth(entry.name(), textMaxWidth), left + 22, rowY + 4, textColor, false);
             String subtitle = entry.type().displayName().getString() + " - " + entry.dimensionText();
             if (!entry.valid()) {
                 subtitle = entry.invalidReason();
             }
-            graphics.drawString(this.font, subtitle, left + 22, rowY + 14, subColor, false);
+            graphics.drawString(this.font, trimToWidth(subtitle, textMaxWidth), left + 22, rowY + 14, subColor, false);
 
             if (entry.valid()) {
                 drawPencil(graphics, left + width - 28, rowY + 5, hovered ? 0xFFFFFFFF : 0xFFB8C2CC);
+            } else {
+                drawWarning(graphics, left + width - 28, rowY + 5);
             }
 
             if (hovered) {
@@ -244,7 +266,7 @@ public class PickYourBedDeathScreen extends Screen {
         }
 
         if (entries.size() > visible) {
-            int barTop = rowsTop();
+            int barTop = layout.rowsTop;
             int barHeight = visible * 25 - 3;
             int thumbHeight = Math.max(14, barHeight * visible / entries.size());
             int thumbTop = barTop + (barHeight - thumbHeight) * this.scrollIndex / Math.max(1, max);
@@ -261,6 +283,15 @@ public class PickYourBedDeathScreen extends Screen {
         graphics.fill(x + 7, y + 5, x + 9, y + 7, color);
         graphics.fill(x + 9, y + 3, x + 11, y + 5, color);
         graphics.fill(x + 10, y + 2, x + 12, y + 4, 0xFFE8B86A);
+    }
+
+    private void drawWarning(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x + 6, y + 1, x + 9, y + 3, 0xFFFFD45C);
+        graphics.fill(x + 5, y + 3, x + 10, y + 5, 0xFFFFD45C);
+        graphics.fill(x + 4, y + 5, x + 11, y + 7, 0xFFFFD45C);
+        graphics.fill(x + 3, y + 7, x + 12, y + 10, 0xFFFFD45C);
+        graphics.fill(x + 6, y + 4, x + 8, y + 7, 0xFF5F4A1D);
+        graphics.fill(x + 6, y + 8, x + 8, y + 9, 0xFF5F4A1D);
     }
 
     private void renderWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -282,16 +313,35 @@ public class PickYourBedDeathScreen extends Screen {
         lines.add(Component.literal("XYZ: " + tooltipEntry.coordinateText()));
         lines.add(Component.literal("Dimension: " + tooltipEntry.dimensionText()));
         lines.add(Component.literal(tooltipEntry.valid() ? "Ready to respawn" : tooltipEntry.invalidReason()));
+        if (BROKEN_OR_DESTROYED.equals(tooltipEntry.invalidReason())) {
+            lines.add(Component.literal("Will be removed after you respawn"));
+        }
         graphics.renderComponentTooltip(this.font, lines, mouseX, mouseY);
     }
 
+    private String trimToWidth(String text, int maxWidth) {
+        if (maxWidth <= 0) {
+            return "";
+        }
+        int ellipsisWidth = this.font.width("...");
+        if (maxWidth <= ellipsisWidth) {
+            return this.font.plainSubstrByWidth("...", maxWidth);
+        }
+        if (this.font.width(text) <= maxWidth) {
+            return text;
+        }
+
+        return this.font.plainSubstrByWidth(text, maxWidth - ellipsisWidth) + "...";
+    }
+
     private RespawnEntryView hoveredEntry(int mouseX, int mouseY) {
+        Layout layout = layout();
         if (!insideList(mouseX, mouseY)) {
             return null;
         }
         List<RespawnEntryView> entries = filteredEntries();
-        int row = (mouseY - rowsTop()) / 25;
-        if (row < 0 || row >= visibleRows()) {
+        int row = (mouseY - layout.rowsTop) / 25;
+        if (row < 0 || row >= layout.visibleRows) {
             return null;
         }
         int index = this.scrollIndex + row;
@@ -299,13 +349,14 @@ public class PickYourBedDeathScreen extends Screen {
     }
 
     private int rowYFor(RespawnEntryView entry) {
+        Layout layout = layout();
         List<RespawnEntryView> entries = filteredEntries();
         for (int i = 0; i < entries.size(); i++) {
             if (entries.get(i).id() == entry.id()) {
-                return rowsTop() + (i - this.scrollIndex) * 25;
+                return layout.rowsTop + (i - this.scrollIndex) * 25;
             }
         }
-        return rowsTop();
+        return layout.rowsTop;
     }
 
     private void respawnAtSelected() {
@@ -340,31 +391,11 @@ public class PickYourBedDeathScreen extends Screen {
     }
 
     private boolean insideList(int mouseX, int mouseY) {
-        return mouseX >= panelLeft() + 12 && mouseX <= panelLeft() + panelWidth() - 12 && mouseY >= rowsTop() && mouseY <= listTop() + panelHeight() - 12;
-    }
-
-    private int panelLeft() {
-        return (this.width - panelWidth()) / 2;
-    }
-
-    private int panelWidth() {
-        return Math.min(420, Math.max(260, this.width - 48));
-    }
-
-    private int listTop() {
-        return Math.max(98, this.height / 2 - 70);
-    }
-
-    private int panelHeight() {
-        return Math.min(188, Math.max(128, this.height - listTop() - 94));
-    }
-
-    private int rowsTop() {
-        return listTop() + 52;
-    }
-
-    private int visibleRows() {
-        return Math.max(2, (panelHeight() - 64) / 25);
+        Layout layout = layout();
+        return mouseX >= layout.panelLeft + 12
+            && mouseX <= layout.panelLeft + layout.panelWidth - 12
+            && mouseY >= layout.rowsTop
+            && mouseY <= layout.panelTop + layout.panelHeight - 12;
     }
 
     private Style getClickedComponentStyleAt(int mouseX) {
@@ -375,6 +406,150 @@ public class PickYourBedDeathScreen extends Screen {
         int left = this.width / 2 - width / 2;
         int right = this.width / 2 + width / 2;
         return mouseX >= left && mouseX <= right ? this.minecraft.font.getSplitter().componentStyleAtWidth(this.causeOfDeath, mouseX - left) : null;
+    }
+
+    private Layout layout() {
+        int screenWidth = Math.max(1, this.width);
+        int screenHeight = Math.max(1, this.height);
+        boolean compact = screenHeight < 260 || screenWidth < 340;
+        int panelWidth = clamp(screenWidth - 48, compact ? 208 : 260, 420);
+        if (screenWidth < panelWidth + 16) {
+            panelWidth = Math.max(120, screenWidth - 16);
+        }
+        int panelLeft = (screenWidth - panelWidth) / 2;
+
+        boolean twoColumnButtons = panelWidth >= 316;
+        int buttonBlockHeight = twoColumnButtons ? 44 : 68;
+        int normalPanelTop = compact ? 68 : 98;
+        int maxButtonTop = Math.max(0, screenHeight - buttonBlockHeight - 10);
+        boolean showHeader = maxButtonTop - normalPanelTop - 10 >= 84;
+        int preferredPanelTop = showHeader ? normalPanelTop : 8;
+        int availableHeight = maxButtonTop - preferredPanelTop - 10;
+        int panelTop = preferredPanelTop;
+        int panelHeight;
+        if (availableHeight >= 84) {
+            panelHeight = Math.min(188, availableHeight);
+        } else {
+            panelTop = Math.max(8, Math.min(preferredPanelTop, maxButtonTop - 84));
+            panelHeight = Math.max(52, maxButtonTop - panelTop - 10);
+        }
+
+        panelHeight = Math.max(52, Math.min(panelHeight, Math.max(52, screenHeight - panelTop - buttonBlockHeight - 20)));
+        int rowsTop = panelTop + 52;
+        int rowAreaHeight = panelHeight - 62;
+        int visibleRows = rowAreaHeight >= 22 ? Math.max(1, (rowAreaHeight + 3) / 25) : 0;
+        int buttonTop = Math.min(maxButtonTop, panelTop + panelHeight + 10);
+
+        int primaryButtonWidth;
+        int primaryButtonX;
+        int secondaryButtonWidth;
+        int secondaryButtonX;
+        int secondaryButtonY;
+        int titleButtonWidth;
+        int titleButtonX;
+        int titleButtonY;
+        if (twoColumnButtons) {
+            primaryButtonWidth = Math.min(150, Math.max(112, (panelWidth - 12) / 2));
+            secondaryButtonWidth = primaryButtonWidth;
+            primaryButtonX = screenWidth / 2 - primaryButtonWidth - 4;
+            secondaryButtonX = screenWidth / 2 + 4;
+            secondaryButtonY = buttonTop;
+            titleButtonWidth = Math.min(150, panelWidth - 28);
+            titleButtonX = screenWidth / 2 - titleButtonWidth / 2;
+            titleButtonY = buttonTop + 24;
+        } else {
+            primaryButtonWidth = Math.min(150, Math.max(104, panelWidth - 28));
+            secondaryButtonWidth = primaryButtonWidth;
+            primaryButtonX = screenWidth / 2 - primaryButtonWidth / 2;
+            secondaryButtonX = primaryButtonX;
+            secondaryButtonY = buttonTop + 24;
+            titleButtonWidth = primaryButtonWidth;
+            titleButtonX = primaryButtonX;
+            titleButtonY = buttonTop + 48;
+        }
+
+        int titleY = compact ? 18 : 48;
+        int causeY = compact ? 42 : 70;
+        int scoreY = compact ? 54 : 84;
+        int filterGap = filterGap(panelWidth - 28);
+        return new Layout(
+            panelLeft,
+            panelTop,
+            panelWidth,
+            panelHeight,
+            rowsTop,
+            visibleRows,
+            filterGap,
+            buttonTop,
+            primaryButtonX,
+            primaryButtonWidth,
+            secondaryButtonX,
+            secondaryButtonY,
+            secondaryButtonWidth,
+            titleButtonX,
+            titleButtonY,
+            titleButtonWidth,
+            titleY,
+            causeY,
+            scoreY,
+            showHeader,
+            showHeader,
+            showHeader
+        );
+    }
+
+    private int[] filterWidths(int availableWidth) {
+        int[] widths = new int[RespawnFilter.values().length];
+        int total = 0;
+        for (int i = 0; i < RespawnFilter.values().length; i++) {
+            widths[i] = RespawnFilter.values()[i].width;
+            total += widths[i];
+        }
+        int gap = filterGap(availableWidth);
+        total += gap * (widths.length - 1);
+        if (total <= availableWidth) {
+            return widths;
+        }
+
+        int equalWidth = Math.max(22, (availableWidth - gap * (widths.length - 1)) / widths.length);
+        for (int i = 0; i < widths.length; i++) {
+            widths[i] = equalWidth;
+        }
+        return widths;
+    }
+
+    private int filterGap(int availableWidth) {
+        return availableWidth >= 160 ? 4 : 2;
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private record Layout(
+        int panelLeft,
+        int panelTop,
+        int panelWidth,
+        int panelHeight,
+        int rowsTop,
+        int visibleRows,
+        int filterGap,
+        int buttonTop,
+        int primaryButtonX,
+        int primaryButtonWidth,
+        int secondaryButtonX,
+        int secondaryButtonY,
+        int secondaryButtonWidth,
+        int titleButtonX,
+        int titleButtonY,
+        int titleButtonWidth,
+        int titleY,
+        int causeY,
+        int scoreY,
+        boolean showDeathTitle,
+        boolean showCause,
+        boolean showScore
+    ) {
     }
 
     private void handleExitToTitleScreen() {

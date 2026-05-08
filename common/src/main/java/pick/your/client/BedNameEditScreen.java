@@ -10,17 +10,18 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class BedNameEditScreen extends Screen {
-    private static final int BACKGROUND_TOP = 0xFF171A20;
-    private static final int BACKGROUND_BOTTOM = 0xFF232A32;
-    private static final int PANEL_COLOR = 0xFF2D343E;
-    private static final int PANEL_HEADER = 0xFF343D49;
-    private static final int PANEL_BORDER = 0xFF67717E;
+    private static final int BACKGROUND_TOP = 0x60500000;
+    private static final int BACKGROUND_BOTTOM = 0xA0803030;
+    private static final int PANEL_COLOR = 0xD82D343E;
+    private static final int PANEL_HEADER = 0xCC343D49;
+    private static final int PANEL_BORDER = 0xD067717E;
     private static final int ACCENT = 0xFF80C7D4;
 
     private final Screen parent;
     private final RespawnEntryView entry;
     private EditBox nameBox;
     private Button saveButton;
+    private String draftName;
 
     public BedNameEditScreen(Screen parent, RespawnEntryView entry) {
         super(Component.literal("Edit Respawn Name"));
@@ -30,14 +31,14 @@ public class BedNameEditScreen extends Screen {
 
     @Override
     protected void init() {
-        int panelWidth = Math.min(320, this.width - 32);
-        int left = (this.width - panelWidth) / 2;
-        int top = this.height / 2 - 58;
+        EditLayout layout = layout();
+        String initialName = this.draftName == null ? this.entry.name() : this.draftName;
 
-        this.nameBox = new EditBox(this.font, left + 18, top + 48, panelWidth - 36, 20, Component.literal("Name"));
+        this.nameBox = new EditBox(this.font, layout.left + 18, layout.nameBoxY, layout.panelWidth - 36, 20, Component.literal("Name"));
         this.nameBox.setMaxLength(32);
-        this.nameBox.setValue(this.entry.name());
+        this.nameBox.setValue(initialName);
         this.nameBox.setResponder(value -> {
+            this.draftName = value;
             if (this.saveButton != null) {
                 this.saveButton.active = !value.trim().isEmpty();
             }
@@ -45,10 +46,11 @@ public class BedNameEditScreen extends Screen {
         this.addRenderableWidget(this.nameBox);
 
         this.saveButton = this.addRenderableWidget(Button.builder(Component.literal("Save"), button -> this.save())
-            .bounds(left + panelWidth - 154, top + 84, 64, 20)
+            .bounds(layout.saveX, layout.saveY, layout.saveWidth, 20)
             .build());
+        this.saveButton.active = !initialName.trim().isEmpty();
         this.addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> this.close())
-            .bounds(left + panelWidth - 84, top + 84, 66, 20)
+            .bounds(layout.cancelX, layout.cancelY, layout.cancelWidth, 20)
             .build());
         this.setInitialFocus(this.nameBox);
     }
@@ -56,17 +58,17 @@ public class BedNameEditScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
-        int panelWidth = Math.min(320, this.width - 32);
-        int left = (this.width - panelWidth) / 2;
-        int top = this.height / 2 - 58;
-        graphics.fill(left, top, left + panelWidth, top + 122, PANEL_COLOR);
-        graphics.fill(left + 1, top + 1, left + panelWidth - 1, top + 40, PANEL_HEADER);
-        graphics.fill(left, top, left + panelWidth, top + 1, ACCENT);
-        graphics.fill(left, top + 121, left + panelWidth, top + 122, PANEL_BORDER);
-        graphics.fill(left, top, left + 1, top + 122, PANEL_BORDER);
-        graphics.fill(left + panelWidth - 1, top, left + panelWidth, top + 122, PANEL_BORDER);
-        graphics.drawString(this.font, "Edit name", left + 18, top + 14, 0xFFFFFFFF, false);
-        graphics.drawString(this.font, this.entry.coordinateText() + " in " + this.entry.dimensionText(), left + 18, top + 28, 0xFFB8C2CC, false);
+        EditLayout layout = layout();
+        graphics.fill(layout.left, layout.top, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_COLOR);
+        graphics.fill(layout.left + 1, layout.top + 1, layout.left + layout.panelWidth - 1, layout.top + 40, PANEL_HEADER);
+        graphics.fill(layout.left, layout.top, layout.left + layout.panelWidth, layout.top + 1, ACCENT);
+        graphics.fill(layout.left, layout.top + layout.panelHeight - 1, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_BORDER);
+        graphics.fill(layout.left, layout.top, layout.left + 1, layout.top + layout.panelHeight, PANEL_BORDER);
+        graphics.fill(layout.left + layout.panelWidth - 1, layout.top, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_BORDER);
+        graphics.drawString(this.font, "Edit name", layout.left + 18, layout.top + 14, 0xFFFFFFFF, false);
+        if (layout.showCoordinate) {
+            graphics.drawString(this.font, trimToWidth(this.entry.coordinateText() + " in " + this.entry.dimensionText(), layout.panelWidth - 36), layout.left + 18, layout.top + 28, 0xFFB8C2CC, false);
+        }
         renderWidgets(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -107,6 +109,78 @@ public class BedNameEditScreen extends Screen {
                 renderable.render(graphics, mouseX, mouseY, partialTick);
             }
         }
+    }
+
+    private EditLayout layout() {
+        int screenWidth = Math.max(1, this.width);
+        int screenHeight = Math.max(1, this.height);
+        int panelWidth = clamp(screenWidth - 32, 180, 320);
+        if (screenWidth < panelWidth + 12) {
+            panelWidth = Math.max(112, screenWidth - 12);
+        }
+        boolean narrow = panelWidth < 230;
+        int panelHeight = Math.min(narrow ? 146 : 122, Math.max(72, screenHeight - 16));
+        int left = (screenWidth - panelWidth) / 2;
+        int top = clamp(screenHeight / 2 - panelHeight / 2, 8, Math.max(8, screenHeight - panelHeight - 8));
+        boolean showCoordinate = panelHeight >= 104;
+
+        boolean stackedButtons = narrow && panelHeight >= 126;
+        int saveWidth = stackedButtons ? Math.min(96, panelWidth - 36) : Math.max(34, Math.min(64, (panelWidth - 42) / 2));
+        int cancelWidth = stackedButtons ? saveWidth : saveWidth;
+        int saveX;
+        int saveY;
+        int cancelX;
+        int cancelY;
+        if (stackedButtons) {
+            saveX = left + panelWidth / 2 - saveWidth / 2;
+            saveY = top + panelHeight - 58;
+            cancelX = left + panelWidth / 2 - cancelWidth / 2;
+            cancelY = saveY + 24;
+        } else {
+            int buttonsWidth = saveWidth + 6 + cancelWidth;
+            saveX = left + panelWidth / 2 - buttonsWidth / 2;
+            saveY = top + panelHeight - 38;
+            cancelX = saveX + saveWidth + 6;
+            cancelY = saveY;
+        }
+        int preferredNameBoxY = showCoordinate ? top + 48 : top + 34;
+        int nameBoxY = Math.max(top + 30, Math.min(preferredNameBoxY, saveY - 24));
+        return new EditLayout(left, top, panelWidth, panelHeight, nameBoxY, saveX, saveY, saveWidth, cancelX, cancelY, cancelWidth, showCoordinate);
+    }
+
+    private String trimToWidth(String text, int maxWidth) {
+        if (maxWidth <= 0) {
+            return "";
+        }
+        int ellipsisWidth = this.font.width("...");
+        if (maxWidth <= ellipsisWidth) {
+            return this.font.plainSubstrByWidth("...", maxWidth);
+        }
+        if (this.font.width(text) <= maxWidth) {
+            return text;
+        }
+
+        return this.font.plainSubstrByWidth(text, maxWidth - ellipsisWidth) + "...";
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private record EditLayout(
+        int left,
+        int top,
+        int panelWidth,
+        int panelHeight,
+        int nameBoxY,
+        int saveX,
+        int saveY,
+        int saveWidth,
+        int cancelX,
+        int cancelY,
+        int cancelWidth,
+        boolean showCoordinate
+    ) {
     }
 
     private void close() {

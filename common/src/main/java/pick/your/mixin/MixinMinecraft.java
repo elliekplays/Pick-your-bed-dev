@@ -15,12 +15,37 @@ public class MixinMinecraft {
 
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void pick_your_bed$replaceDeathScreen(Screen screen, CallbackInfo info) {
-        if (screen instanceof DeathScreen deathScreen && !(screen instanceof PickYourBedDeathScreen)) {
-            DeathScreenAccessor accessor = (DeathScreenAccessor)deathScreen;
-            Component cause = accessor.pick_your_bed$causeOfDeath();
-            boolean hardcore = accessor.pick_your_bed$hardcore();
+        Minecraft minecraft = (Minecraft)(Object)this;
+        if (screen instanceof DeathScreen deathScreen) {
+            replaceVanillaDeathScreen(minecraft, deathScreen);
             info.cancel();
-            ((Minecraft)(Object)this).setScreen(new PickYourBedDeathScreen(cause, hardcore));
+            return;
         }
+
+        if (screen == null && minecraft.level != null && minecraft.player != null && minecraft.player.isDeadOrDying()) {
+            info.cancel();
+            if (minecraft.player.shouldShowDeathScreen()) {
+                minecraft.setScreen(new PickYourBedDeathScreen(null, minecraft.level.getLevelData().isHardcore()));
+            } else {
+                minecraft.player.respawn();
+            }
+        }
+    }
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void pick_your_bed$replaceExistingDeathScreen(CallbackInfo info) {
+        Minecraft minecraft = (Minecraft)(Object)this;
+        if (minecraft.screen instanceof DeathScreen deathScreen) {
+            replaceVanillaDeathScreen(minecraft, deathScreen);
+        } else if (minecraft.screen == null && minecraft.level != null && minecraft.player != null && minecraft.player.isDeadOrDying() && minecraft.player.shouldShowDeathScreen()) {
+            minecraft.setScreen(new PickYourBedDeathScreen(null, minecraft.level.getLevelData().isHardcore()));
+        }
+    }
+
+    private static void replaceVanillaDeathScreen(Minecraft minecraft, DeathScreen deathScreen) {
+        DeathScreenAccessor accessor = (DeathScreenAccessor)deathScreen;
+        Component cause = accessor.pick_your_bed$causeOfDeath();
+        boolean hardcore = accessor.pick_your_bed$hardcore();
+        minecraft.setScreen(new PickYourBedDeathScreen(cause, hardcore));
     }
 }

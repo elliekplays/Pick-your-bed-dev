@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class RespawnSavedData extends SavedData {
     private static final String DATA_NAME = "pick_your_bed_respawns";
@@ -73,6 +74,24 @@ public class RespawnSavedData extends SavedData {
         entry.get().rename(name);
         this.setDirty();
         return true;
+    }
+
+    public int removeEntries(UUID owner, Predicate<RespawnEntry> predicate) {
+        List<RespawnEntry> entries = this.entriesByOwner.get(owner);
+        if (entries == null || entries.isEmpty()) {
+            return 0;
+        }
+
+        int before = entries.size();
+        entries.removeIf(predicate);
+        int removed = before - entries.size();
+        if (removed > 0) {
+            if (entries.isEmpty()) {
+                this.entriesByOwner.remove(owner);
+            }
+            this.setDirty();
+        }
+        return removed;
     }
 
     @Override

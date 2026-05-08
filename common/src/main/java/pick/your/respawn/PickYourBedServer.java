@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Optional;
 
 public final class PickYourBedServer {
+    private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
+
     private PickYourBedServer() {
     }
 
@@ -60,6 +62,18 @@ public final class PickYourBedServer {
 
     public static void handleListRequest(ServerPlayer player) {
         syncList(player);
+    }
+
+    public static void removeBrokenRespawnsAfterRespawn(ServerPlayer player) {
+        try {
+            RespawnSavedData data = RespawnSavedData.get(player.server);
+            int removed = data.removeEntries(player.getUUID(), entry -> isBrokenOrDestroyed(validate(player.server, entry)));
+            if (removed > 0) {
+                syncList(player);
+            }
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to remove broken respawn points for {}", player.getGameProfile().getName(), exception);
+        }
     }
 
     public static void handleRename(ServerPlayer player, long id, String name) {
@@ -130,7 +144,7 @@ public final class PickYourBedServer {
         BlockState state = level.getBlockState(entry.pos());
         if (entry.type() == RespawnEntryType.BED) {
             if (!(state.getBlock() instanceof BedBlock)) {
-                return RespawnValidation.invalid("Broken or destroyed");
+                return RespawnValidation.invalid(BROKEN_OR_DESTROYED);
             }
             if (!BedBlock.canSetSpawn(level)) {
                 return RespawnValidation.invalid("Beds do not work here");
@@ -141,7 +155,7 @@ public final class PickYourBedServer {
                 : entry.pos().relative(state.getValue(BedBlock.FACING));
             BlockState bedState = level.getBlockState(bedPos);
             if (!(bedState.getBlock() instanceof BedBlock)) {
-                return RespawnValidation.invalid("Broken or destroyed");
+                return RespawnValidation.invalid(BROKEN_OR_DESTROYED);
             }
 
             return BedBlock.findStandUpPosition(EntityType.PLAYER, level, bedPos, bedState.getValue(BedBlock.FACING), 0.0F).isPresent()
@@ -150,7 +164,7 @@ public final class PickYourBedServer {
         }
 
         if (!(state.getBlock() instanceof RespawnAnchorBlock)) {
-            return RespawnValidation.invalid("Broken or destroyed");
+            return RespawnValidation.invalid(BROKEN_OR_DESTROYED);
         }
         if (!RespawnAnchorBlock.canSetSpawn(level)) {
             return RespawnValidation.invalid("Respawn anchors do not work here");
@@ -174,5 +188,9 @@ public final class PickYourBedServer {
         } catch (RuntimeException exception) {
             Constants.LOG.error("Failed to send {} packet to {}", payload.type().id(), player.getGameProfile().getName(), exception);
         }
+    }
+
+    private static boolean isBrokenOrDestroyed(RespawnValidation validation) {
+        return !validation.valid() && BROKEN_OR_DESTROYED.equals(validation.reason());
     }
 }

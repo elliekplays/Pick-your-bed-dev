@@ -46,6 +46,11 @@ public final class PickYourBedServer {
     }
 
     private static void recordPlacedRespawnUnsafe(ServerPlayer player, RespawnEntryType type, BlockPos pos) {
+        RespawnValidation compatibility = validateCompatibility(player.level(), pos);
+        if (!compatibility.valid()) {
+            return;
+        }
+
         RespawnSavedData data = RespawnSavedData.get(player.server);
         data.addOrUpdate(player.getUUID(), type, player.level().dimension().location(), pos.immutable());
         syncList(player);
@@ -61,6 +66,12 @@ public final class PickYourBedServer {
     }
 
     private static void openEditorUnsafe(ServerPlayer player, RespawnEntryType type, BlockPos pos) {
+        RespawnValidation compatibility = validateCompatibility(player.level(), pos);
+        if (!compatibility.valid()) {
+            notifyPlayer(player, compatibility.reason());
+            return;
+        }
+
         RespawnSavedData data = RespawnSavedData.get(player.server);
         RespawnEntry entry = data.addOrUpdate(player.getUUID(), type, player.level().dimension().location(), pos.immutable());
         sendToClient(player, new OpenEditorPayload(toView(player.server, entry)));
@@ -107,18 +118,18 @@ public final class PickYourBedServer {
 
     public static void handleAfterRespawn(ServerPlayer player) {
         restoreOriginalRespawn(player);
-        removeBrokenRespawnsAfterRespawn(player);
+        removeInvalidRespawnsAfterRespawn(player);
     }
 
-    private static void removeBrokenRespawnsAfterRespawn(ServerPlayer player) {
+    private static void removeInvalidRespawnsAfterRespawn(ServerPlayer player) {
         try {
             RespawnSavedData data = RespawnSavedData.get(player.server);
-            int removed = data.removeEntries(player.getUUID(), entry -> isBrokenOrDestroyed(validate(player.server, entry)));
+            int removed = data.removeEntries(player.getUUID(), entry -> shouldRemoveAfterRespawn(validate(player.server, entry)));
             if (removed > 0) {
                 syncList(player);
             }
         } catch (RuntimeException exception) {
-            Constants.LOG.error("Failed to remove broken respawn points for {}", player.getGameProfile().getName(), exception);
+            Constants.LOG.error("Failed to remove invalid respawn points for {}", player.getGameProfile().getName(), exception);
         }
     }
 
@@ -189,6 +200,11 @@ public final class PickYourBedServer {
         }
 
         BlockState state = level.getBlockState(entry.pos());
+        RespawnValidation compatibility = validateCompatibility(level, entry.pos(), state);
+        if (!compatibility.valid()) {
+            return compatibility;
+        }
+
         if (entry.type() == RespawnEntryType.BED) {
             if (!(state.getBlock() instanceof BedBlock)) {
                 return RespawnValidation.invalid(BROKEN_OR_DESTROYED);
@@ -239,6 +255,23 @@ public final class PickYourBedServer {
 
     private static boolean isBrokenOrDestroyed(RespawnValidation validation) {
         return !validation.valid() && BROKEN_OR_DESTROYED.equals(validation.reason());
+    }
+
+    private static boolean shouldRemoveAfterRespawn(RespawnValidation validation) {
+        return isBrokenOrDestroyed(validation) || !validation.valid() && ModCompatibility.shouldRemoveAfterRespawn(validation.reason());
+    }
+
+    private static RespawnValidation validateCompatibility(Level level, BlockPos pos) {
+        if (level == null || pos == null) {
+            return RespawnValidation.invalid("Invalid location");
+        }
+        return validateCompatibility(level, pos, level.getBlockState(pos));
+    }
+
+    private static RespawnValidation validateCompatibility(Level level, BlockPos pos, BlockState state) {
+        return ModCompatibility.unsupportedReason(level, pos, state)
+            .map(RespawnValidation::invalid)
+            .orElseGet(RespawnValidation::ok);
     }
 
     private static boolean recordHardcoreDeathIfNeeded(SurvivalStatsSavedData data, ServerPlayer player) {

@@ -1,7 +1,8 @@
 package pick.your.mixin;
 
-import pick.your.respawn.RespawnEntryType;
+import pick.your.respawn.ModCompatibility;
 import pick.your.respawn.PickYourBedServer;
+import pick.your.respawn.RespawnEntryType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -46,6 +47,9 @@ public class MixinBedBlock {
         CallbackInfoReturnable<InteractionResult> info
     ) {
         if (!player.isShiftKeyDown()) {
+            return;
+        }
+        if (ModCompatibility.shouldLetVanillaHandleEditor(state)) {
             return;
         }
 

@@ -39,6 +39,14 @@ Instead of only using the most recent bed or respawn anchor, the mod keeps a per
 
 For multiplayer, install Pick your bed on both the client and the server. The client handles the UI; the server stores and validates respawn points.
 
+## Mod Compatibility
+
+| Mod | Compatibility behavior |
+| --- | --- |
+| [Comforts](https://www.curseforge.com/minecraft/mc-mods/comforts) | Sleeping bags and hammocks are ignored because they are sleep blocks, not saved respawn points. |
+| [Create](https://modrinth.com/mod/create) | Beds and respawn anchors are tagged as non-movable so contraptions do not casually move saved respawn blocks. |
+| [Create: Aeronautics](https://www.curseforge.com/minecraft/mc-mods/create-aeronautics) | Respawn points inside moving sublevel/physics contraption space are shown as unavailable instead of being used as unsafe coordinates. |
+
 ## Installing Prebuilt Jars
 
 1. Install either [Fabric](https://fabricmc.net/use/installer/) or [NeoForge](https://neoforged.net/).

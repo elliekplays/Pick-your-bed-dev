@@ -4,10 +4,19 @@ import pick.your.respawn.RespawnEntryView;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class BedNameEditScreen extends Screen {
+    private static final int BACKGROUND_TOP = 0xFF171A20;
+    private static final int BACKGROUND_BOTTOM = 0xFF232A32;
+    private static final int PANEL_COLOR = 0xFF2D343E;
+    private static final int PANEL_HEADER = 0xFF343D49;
+    private static final int PANEL_BORDER = 0xFF67717E;
+    private static final int ACCENT = 0xFF80C7D4;
+
     private final Screen parent;
     private final RespawnEntryView entry;
     private EditBox nameBox;
@@ -50,11 +59,20 @@ public class BedNameEditScreen extends Screen {
         int panelWidth = Math.min(320, this.width - 32);
         int left = (this.width - panelWidth) / 2;
         int top = this.height / 2 - 58;
-        graphics.fill(left, top, left + panelWidth, top + 122, 0xEE17191D);
-        graphics.fill(left, top, left + panelWidth, top + 1, 0xFF80C7D4);
+        graphics.fill(left, top, left + panelWidth, top + 122, PANEL_COLOR);
+        graphics.fill(left + 1, top + 1, left + panelWidth - 1, top + 40, PANEL_HEADER);
+        graphics.fill(left, top, left + panelWidth, top + 1, ACCENT);
+        graphics.fill(left, top + 121, left + panelWidth, top + 122, PANEL_BORDER);
+        graphics.fill(left, top, left + 1, top + 122, PANEL_BORDER);
+        graphics.fill(left + panelWidth - 1, top, left + panelWidth, top + 122, PANEL_BORDER);
         graphics.drawString(this.font, "Edit name", left + 18, top + 14, 0xFFFFFFFF, false);
         graphics.drawString(this.font, this.entry.coordinateText() + " in " + this.entry.dimensionText(), left + 18, top + 28, 0xFFB8C2CC, false);
-        super.render(graphics, mouseX, mouseY, partialTick);
+        renderWidgets(graphics, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.fillGradient(0, 0, this.width, this.height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
     }
 
     @Override
@@ -75,9 +93,20 @@ public class BedNameEditScreen extends Screen {
         if (this.nameBox == null) {
             return;
         }
+        if (this.nameBox.getValue().trim().isEmpty()) {
+            return;
+        }
 
         PickYourBedClient.rename(this.entry.id(), this.nameBox.getValue());
         this.close();
+    }
+
+    private void renderWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        for (GuiEventListener child : this.children()) {
+            if (child instanceof Renderable renderable) {
+                renderable.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
     }
 
     private void close() {

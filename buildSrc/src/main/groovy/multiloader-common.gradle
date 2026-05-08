@@ -4,7 +4,7 @@ plugins {
 }
 
 base {
-    archivesName = "${mod_id}-${project.name}-${minecraft_version}"
+    archivesName = "pick-your-bed-${minecraft_version}-${project.version}-${project.name}"
 }
 
 java {
@@ -67,6 +67,10 @@ jar {
                     'Implementation-Vendor' : mod_author,
                     'Built-On-Minecraft'    : minecraft_version])
     }
+}
+
+tasks.withType(org.gradle.api.tasks.bundling.AbstractArchiveTask).configureEach {
+    archiveVersion.set('')
 }
 
 processResources {

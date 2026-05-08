@@ -11,6 +11,7 @@ import pick.your.platform.Services;
 import pick.your.respawn.RespawnEntry;
 import pick.your.respawn.RespawnEntryView;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
@@ -48,7 +49,8 @@ public final class PickYourBedClient {
         }
 
         mergeEntry(payload.entry());
-        minecraft.setScreen(new BedNameEditScreen(minecraft.screen, payload.entry()));
+        Screen parent = minecraft.screen instanceof PickYourBedDeathScreen ? minecraft.screen : null;
+        minecraft.setScreen(new BedNameEditScreen(parent, payload.entry()));
     }
 
     public static void rename(long id, String name) {

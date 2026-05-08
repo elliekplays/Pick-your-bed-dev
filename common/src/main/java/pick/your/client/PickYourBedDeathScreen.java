@@ -5,8 +5,10 @@ import pick.your.respawn.RespawnEntryView;
 import com.google.common.collect.Lists;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.GenericMessageScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -20,13 +22,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PickYourBedDeathScreen extends Screen {
-    private static final int PANEL_COLOR = 0xE914171C;
-    private static final int PANEL_BORDER = 0xFF2C3138;
+    private static final int BACKGROUND_TOP = 0xFF171A20;
+    private static final int BACKGROUND_BOTTOM = 0xFF232A32;
+    private static final int PANEL_COLOR = 0xFF2D343E;
+    private static final int PANEL_HEADER = 0xFF343D49;
+    private static final int PANEL_BORDER = 0xFF67717E;
     private static final int ACCENT = 0xFF80C7D4;
-    private static final int SELECTED = 0xFF355A62;
-    private static final int ROW = 0xBB222832;
-    private static final int ROW_HOVER = 0xDD2B3440;
-    private static final int INVALID_ROW = 0x99303136;
+    private static final int SELECTED = 0xFF2F6D79;
+    private static final int ROW = 0xFF3B444F;
+    private static final int ROW_HOVER = 0xFF47525F;
+    private static final int INVALID_ROW = 0xFF3A3F45;
 
     private final Component causeOfDeath;
     private final boolean hardcore;
@@ -72,7 +77,7 @@ public class PickYourBedDeathScreen extends Screen {
             .build());
         this.exitButtons.add(this.selectedRespawnButton);
 
-        Component normalLabel = this.hardcore ? Component.translatable("deathScreen.spectate") : Component.literal("Respawn Normally");
+        Component normalLabel = this.hardcore ? Component.translatable("deathScreen.spectate") : Component.literal("Respawn at Last Point");
         this.exitButtons.add(this.addRenderableWidget(Button.builder(normalLabel, button -> {
             if (this.minecraft.player != null) {
                 this.minecraft.player.respawn();
@@ -128,8 +133,9 @@ public class PickYourBedDeathScreen extends Screen {
         }
         graphics.drawCenteredString(this.font, this.deathScore, this.width / 2, 84, 0xFFE8EDF2);
 
-        renderList(graphics, mouseX, mouseY);
-        super.render(graphics, mouseX, mouseY, partialTick);
+        RespawnEntryView tooltipEntry = renderList(graphics, mouseX, mouseY);
+        renderWidgets(graphics, mouseX, mouseY, partialTick);
+        renderEntryTooltip(graphics, tooltipEntry, mouseX, mouseY);
 
         if (this.causeOfDeath != null && mouseY > 70 && mouseY < 79) {
             Style style = this.getClickedComponentStyleAt(mouseX);
@@ -139,7 +145,7 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fillGradient(0, 0, this.width, this.height, 0xD0180A0D, 0xF0030508);
+        graphics.fillGradient(0, 0, this.width, this.height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
     }
 
     @Override
@@ -184,12 +190,13 @@ public class PickYourBedDeathScreen extends Screen {
         return false;
     }
 
-    private void renderList(GuiGraphics graphics, int mouseX, int mouseY) {
+    private RespawnEntryView renderList(GuiGraphics graphics, int mouseX, int mouseY) {
         int left = panelLeft();
         int top = listTop();
         int width = panelWidth();
         int height = panelHeight();
         graphics.fill(left, top, left + width, top + height, PANEL_COLOR);
+        graphics.fill(left + 1, top + 1, left + width - 1, top + 30, PANEL_HEADER);
         graphics.fill(left, top, left + width, top + 1, ACCENT);
         graphics.fill(left, top + height - 1, left + width, top + height, PANEL_BORDER);
         graphics.fill(left, top, left + 1, top + height, PANEL_BORDER);
@@ -201,7 +208,7 @@ public class PickYourBedDeathScreen extends Screen {
         if (entries.isEmpty()) {
             String message = this.filter == RespawnFilter.BEDS ? "No beds recorded" : this.filter == RespawnFilter.OTHER ? "No other respawns recorded" : "No respawns recorded";
             graphics.drawCenteredString(this.font, Component.literal(message), left + width / 2, top + height / 2, 0xFF8F99A3);
-            return;
+            return null;
         }
 
         int visible = visibleRows();
@@ -245,15 +252,7 @@ public class PickYourBedDeathScreen extends Screen {
             graphics.fill(left + width - 8, thumbTop, left + width - 4, thumbTop + thumbHeight, 0xFF80C7D4);
         }
 
-        if (tooltipEntry != null) {
-            List<Component> lines = new ArrayList<>();
-            lines.add(Component.literal(tooltipEntry.name()));
-            lines.add(Component.literal(tooltipEntry.type().displayName().getString()));
-            lines.add(Component.literal("XYZ: " + tooltipEntry.coordinateText()));
-            lines.add(Component.literal("Dimension: " + tooltipEntry.dimensionText()));
-            lines.add(Component.literal(tooltipEntry.valid() ? "Ready to respawn" : tooltipEntry.invalidReason()));
-            graphics.renderComponentTooltip(this.font, lines, mouseX, mouseY);
-        }
+        return tooltipEntry;
     }
 
     private void drawPencil(GuiGraphics graphics, int x, int y, int color) {
@@ -262,6 +261,28 @@ public class PickYourBedDeathScreen extends Screen {
         graphics.fill(x + 7, y + 5, x + 9, y + 7, color);
         graphics.fill(x + 9, y + 3, x + 11, y + 5, color);
         graphics.fill(x + 10, y + 2, x + 12, y + 4, 0xFFE8B86A);
+    }
+
+    private void renderWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        for (GuiEventListener child : this.children()) {
+            if (child instanceof Renderable renderable) {
+                renderable.render(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+    }
+
+    private void renderEntryTooltip(GuiGraphics graphics, RespawnEntryView tooltipEntry, int mouseX, int mouseY) {
+        if (tooltipEntry == null) {
+            return;
+        }
+
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.literal(tooltipEntry.name()));
+        lines.add(Component.literal(tooltipEntry.type().displayName().getString()));
+        lines.add(Component.literal("XYZ: " + tooltipEntry.coordinateText()));
+        lines.add(Component.literal("Dimension: " + tooltipEntry.dimensionText()));
+        lines.add(Component.literal(tooltipEntry.valid() ? "Ready to respawn" : tooltipEntry.invalidReason()));
+        graphics.renderComponentTooltip(this.font, lines, mouseX, mouseY);
     }
 
     private RespawnEntryView hoveredEntry(int mouseX, int mouseY) {
@@ -357,28 +378,21 @@ public class PickYourBedDeathScreen extends Screen {
     }
 
     private void handleExitToTitleScreen() {
-        if (this.hardcore) {
-            this.exitToTitleScreen();
-        } else {
-            ConfirmScreen confirm = new TitleConfirmScreen(
-                confirmed -> {
-                    if (confirmed) {
-                        this.exitToTitleScreen();
-                    } else {
-                        if (this.minecraft.player != null) {
-                            this.minecraft.player.respawn();
-                        }
-                        this.minecraft.setScreen(null);
-                    }
-                },
-                Component.translatable("deathScreen.quit.confirm"),
-                CommonComponents.EMPTY,
-                Component.translatable("deathScreen.titleScreen"),
-                Component.translatable("deathScreen.respawn")
-            );
-            this.minecraft.setScreen(confirm);
-            confirm.setDelay(20);
-        }
+        ConfirmScreen confirm = new TitleConfirmScreen(
+            confirmed -> {
+                if (confirmed) {
+                    this.exitToTitleScreen();
+                } else {
+                    this.minecraft.setScreen(this);
+                }
+            },
+            Component.literal("Exit to title screen?"),
+            Component.literal("Are you sure you want to exit to the title screen?"),
+            CommonComponents.GUI_YES,
+            CommonComponents.GUI_NO
+        );
+        this.minecraft.setScreen(confirm);
+        confirm.setDelay(20);
     }
 
     private void exitToTitleScreen() {

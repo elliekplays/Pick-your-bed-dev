@@ -42,15 +42,30 @@ jobs:
           echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "msg=$(git log -1 --pretty=%s)" >> $GITHUB_OUTPUT
 
-      - name: build mod
+      - name: build project
         run: ./gradlew build
 
-      - name: upload artifact (github)
+      # ─────────────────────────────
+      # FABRIC ARTIFACT
+      # ─────────────────────────────
+      - name: upload fabric jar (github)
         uses: actions/upload-artifact@v4
         with:
-          name: mod-build
-          path: build/libs/*all.jar
+          name: fabric-mod
+          path: fabric/build/libs/*.jar
 
+      # ─────────────────────────────
+      # NEOFORGE ARTIFACT
+      # ─────────────────────────────
+      - name: upload neoforge jar (github)
+        uses: actions/upload-artifact@v4
+        with:
+          name: neoforge-mod
+          path: neoforge/build/libs/*.jar
+
+      # ─────────────────────────────
+      # DISCORD EMBED
+      # ─────────────────────────────
       - name: send discord embed
         if: success()
         env:
@@ -96,8 +111,3 @@ jobs:
             }]
           }' \
           $WEBHOOK
-
-      - name: upload jar to discord
-        if: success()
-        run: |
-          curl -F "file=@build/libs/"*.jar ${{ secrets.DISCORD_WEBHOOK }}

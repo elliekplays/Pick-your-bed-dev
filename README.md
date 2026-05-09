@@ -7,7 +7,7 @@
 ![Version](https://img.shields.io/badge/Version-1.3.11-80C7D4?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-Custom_Restricted-lightgrey?style=for-the-badge)
 
-Pick Your Bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
+**Pick Your Bed** gives Minecraft's death screen the choice it should have had: pick where you want to come back.
 
 Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge**.
 

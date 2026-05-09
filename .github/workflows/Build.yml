@@ -127,7 +127,7 @@ jobs:
                   {
                       "title": "Build Complete",
                       "url": os.environ["RUN_URL"],
-                      "description": "Fabric and NeoForge jars are attached below.",
+                      "description": "Fabric and NeoForge jars are uploaded below this embed.",
                       "color": 5814783,
                       "author": {
                           "name": f"By: {os.environ['ACTOR']}",
@@ -167,12 +167,28 @@ jobs:
               ],
           }
 
+          files_payload = {
+              "username": "Pick Your Bed Builds",
+              "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+              "content": "Built jars:",
+          }
+
           with open("discord-payload.json", "w", encoding="utf-8") as file:
               json.dump(payload, file, ensure_ascii=True, separators=(",", ":"))
+
+          with open("discord-files-payload.json", "w", encoding="utf-8") as file:
+              json.dump(files_payload, file, ensure_ascii=True, separators=(",", ":"))
           PY
 
           curl --fail --show-error --silent \
-            -F "payload_json=<discord-payload.json" \
+            --header "Content-Type: application/json" \
+            --data @discord-payload.json \
+            "$WEBHOOK_URL"
+
+          sleep 1
+
+          curl --fail --show-error --silent \
+            -F "payload_json=<discord-files-payload.json" \
             -F "files[0]=@${FABRIC_JAR}" \
             -F "files[1]=@${NEOFORGE_JAR}" \
             "$WEBHOOK_URL"

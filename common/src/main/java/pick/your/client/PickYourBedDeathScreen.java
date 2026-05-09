@@ -40,6 +40,10 @@ public class PickYourBedDeathScreen extends Screen {
     private static final int LIST_TITLE_Y_OFFSET = LIST_HEADER_HEIGHT + 8;
     private static final int LIST_ROWS_TOP_OFFSET = LIST_HEADER_HEIGHT + 24;
     private static final int LIST_BOTTOM_PADDING = 10;
+    private static final int EDIT_BUTTON_SIZE = 12;
+    private static final int EDIT_BUTTON_ROW_PADDING = 5;
+    private static final int EDIT_BUTTON_TOP_OFFSET = 5;
+    private static final float ENTRY_TEXT_SCALE = 0.9F;
     private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
     private static final String[] HARDCORE_QUOTES = {
         "Well fought. Your next run starts wiser.",
@@ -163,11 +167,16 @@ public class PickYourBedDeathScreen extends Screen {
             this.exitButtons.add(this.selectedRespawnButton);
 
             this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Respawn at Last Point", "Last Point", layout.secondaryButtonWidth), button -> {
-                if (this.minecraft.player != null) {
-                    this.minecraft.player.respawn();
-                }
+                PickYourBedClient.selectLastRespawnForRespawn();
                 button.active = false;
+                updateSelectedButton();
             }).bounds(layout.secondaryButtonX, layout.secondaryButtonY, layout.secondaryButtonWidth, 20).build()));
+
+            this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Respawn at World Spawn", "World Spawn", layout.worldSpawnButtonWidth), button -> {
+                PickYourBedClient.selectWorldSpawnForRespawn();
+                button.active = false;
+                updateSelectedButton();
+            }).bounds(layout.worldSpawnButtonX, layout.worldSpawnButtonY, layout.worldSpawnButtonWidth, 20).build()));
 
             this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Title Screen", "Title", layout.titleButtonWidth), button -> handleExitToTitleScreen())
                 .bounds(layout.titleButtonX, layout.titleButtonY, layout.titleButtonWidth, 20)
@@ -298,9 +307,8 @@ public class PickYourBedDeathScreen extends Screen {
 
         RespawnEntryView hovered = hoveredEntry((int)mouseX, (int)mouseY);
         if (hovered != null && hovered.valid()) {
-            int iconLeft = layout.panelLeft + layout.panelWidth - 30;
             int rowY = rowYFor(hovered);
-            if (mouseX >= iconLeft && mouseX <= iconLeft + 18 && mouseY >= rowY + 3 && mouseY <= rowY + 21) {
+            if (insideEditButton((int)mouseX, (int)mouseY, layout, rowY)) {
                 this.minecraft.setScreen(new BedNameEditScreen(this, hovered));
                 return true;
             }
@@ -364,7 +372,9 @@ public class PickYourBedDeathScreen extends Screen {
         for (int i = 0; i < visible && i + this.scrollIndex < entries.size(); i++) {
             RespawnEntryView entry = entries.get(i + this.scrollIndex);
             int rowY = startY + i * 25;
-            boolean hovered = mouseX >= left + 12 && mouseX <= left + width - 12 && mouseY >= rowY && mouseY <= rowY + 22;
+            boolean rowBoundsHovered = mouseX >= left + 12 && mouseX <= left + width - 12 && mouseY >= rowY && mouseY <= rowY + 22;
+            boolean editHovered = entry.valid() && insideEditButton(mouseX, mouseY, layout, rowY);
+            boolean hovered = rowBoundsHovered && !editHovered;
             boolean selected = entry.id() == this.selectedId;
             int rowColor = entry.valid() ? (selected ? SELECTED : hovered ? ROW_HOVER : ROW) : INVALID_ROW;
             PickYourBedUiTextures.renderListRow(graphics, left + 12, rowY, width - 24, 22, rowColor);
@@ -374,15 +384,16 @@ public class PickYourBedDeathScreen extends Screen {
             int subColor = entry.valid() ? 0xFFAAB5BF : 0xFF6F767D;
             int textMaxWidth = width - 74;
             int textBlockTop = rowY + Math.max(3, (22 - (this.font.lineHeight * 2 + 1)) / 2 + 2);
-            graphics.drawString(this.font, trimToWidth(entry.name(), textMaxWidth), left + 22, textBlockTop, textColor, false);
+            int scaledTextMaxWidth = Math.max(1, Math.round(textMaxWidth / ENTRY_TEXT_SCALE));
+            drawScaledString(graphics, trimToWidth(entry.name(), scaledTextMaxWidth), left + 22, textBlockTop, textColor, ENTRY_TEXT_SCALE);
             String subtitle = entry.type().displayName().getString() + " - " + entry.dimensionText();
             if (!entry.valid()) {
                 subtitle = entry.invalidReason();
             }
-            graphics.drawString(this.font, trimToWidth(subtitle, textMaxWidth), left + 22, textBlockTop + this.font.lineHeight + 1, subColor, false);
+            drawScaledString(graphics, trimToWidth(subtitle, scaledTextMaxWidth), left + 22, textBlockTop + this.font.lineHeight + 1, subColor, ENTRY_TEXT_SCALE);
 
             if (entry.valid()) {
-                drawPencil(graphics, left + width - 28, rowY + 5, hovered ? 0xFFFFFFFF : 0xFFB8C2CC);
+                PickYourBedUiTextures.renderEditIcon(graphics, editButtonLeft(layout), rowY + EDIT_BUTTON_TOP_OFFSET, editHovered);
             } else {
                 drawWarning(graphics, left + width - 28, rowY + 5);
             }
@@ -457,14 +468,6 @@ public class PickYourBedDeathScreen extends Screen {
         return HARDCORE_QUOTES[index];
     }
 
-    private void drawPencil(GuiGraphics graphics, int x, int y, int color) {
-        graphics.fill(x + 3, y + 9, x + 5, y + 11, 0xFFC6924E);
-        graphics.fill(x + 5, y + 7, x + 7, y + 9, color);
-        graphics.fill(x + 7, y + 5, x + 9, y + 7, color);
-        graphics.fill(x + 9, y + 3, x + 11, y + 5, color);
-        graphics.fill(x + 10, y + 2, x + 12, y + 4, 0xFFE8B86A);
-    }
-
     private void drawWarning(GuiGraphics graphics, int x, int y) {
         graphics.fill(x + 6, y + 1, x + 9, y + 3, 0xFFFFD45C);
         graphics.fill(x + 5, y + 3, x + 10, y + 5, 0xFFFFD45C);
@@ -472,6 +475,14 @@ public class PickYourBedDeathScreen extends Screen {
         graphics.fill(x + 3, y + 7, x + 12, y + 10, 0xFFFFD45C);
         graphics.fill(x + 6, y + 4, x + 8, y + 7, 0xFF5F4A1D);
         graphics.fill(x + 6, y + 8, x + 8, y + 9, 0xFF5F4A1D);
+    }
+
+    private void drawScaledString(GuiGraphics graphics, String text, int x, int y, int color, float scale) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0.0F);
+        graphics.pose().scale(scale, scale, 1.0F);
+        graphics.drawString(this.font, text, 0, 0, color, false);
+        graphics.pose().popPose();
     }
 
     private void renderWidgets(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
@@ -662,6 +673,19 @@ public class PickYourBedDeathScreen extends Screen {
             && mouseY <= rowY + 10;
     }
 
+    private boolean insideEditButton(int mouseX, int mouseY, Layout layout, int rowY) {
+        int left = editButtonLeft(layout);
+        int top = rowY + EDIT_BUTTON_TOP_OFFSET;
+        return mouseX >= left
+            && mouseX <= left + EDIT_BUTTON_SIZE
+            && mouseY >= top
+            && mouseY <= top + EDIT_BUTTON_SIZE;
+    }
+
+    private int editButtonLeft(Layout layout) {
+        return layout.panelLeft + layout.panelWidth - 12 - EDIT_BUTTON_ROW_PADDING - EDIT_BUTTON_SIZE;
+    }
+
     private boolean insideList(int mouseX, int mouseY) {
         Layout layout = layout();
         return mouseX >= layout.panelLeft + 12
@@ -691,7 +715,7 @@ public class PickYourBedDeathScreen extends Screen {
         int panelLeft = (screenWidth - panelWidth) / 2;
 
         boolean twoColumnButtons = panelWidth >= 316;
-        int buttonBlockHeight = twoColumnButtons ? 44 : 68;
+        int buttonBlockHeight = twoColumnButtons ? 44 : 92;
         int normalPanelTop = compact ? 68 : 98;
         int maxButtonTop = Math.max(0, screenHeight - buttonBlockHeight - 10);
         boolean showHeader = maxButtonTop - normalPanelTop - 10 >= 84;
@@ -717,27 +741,36 @@ public class PickYourBedDeathScreen extends Screen {
         int secondaryButtonWidth;
         int secondaryButtonX;
         int secondaryButtonY;
+        int worldSpawnButtonWidth;
+        int worldSpawnButtonX;
+        int worldSpawnButtonY;
         int titleButtonWidth;
         int titleButtonX;
         int titleButtonY;
         if (twoColumnButtons) {
             primaryButtonWidth = Math.min(150, Math.max(112, (panelWidth - 12) / 2));
             secondaryButtonWidth = primaryButtonWidth;
+            worldSpawnButtonWidth = primaryButtonWidth;
+            titleButtonWidth = secondaryButtonWidth;
             primaryButtonX = screenWidth / 2 - primaryButtonWidth - 4;
             secondaryButtonX = screenWidth / 2 + 4;
             secondaryButtonY = buttonTop;
-            titleButtonWidth = Math.min(150, panelWidth - 28);
-            titleButtonX = screenWidth / 2 - titleButtonWidth / 2;
+            worldSpawnButtonX = primaryButtonX;
+            worldSpawnButtonY = buttonTop + 24;
+            titleButtonX = secondaryButtonX;
             titleButtonY = buttonTop + 24;
         } else {
             primaryButtonWidth = Math.min(150, Math.max(104, panelWidth - 28));
             secondaryButtonWidth = primaryButtonWidth;
+            worldSpawnButtonWidth = primaryButtonWidth;
+            titleButtonWidth = primaryButtonWidth;
             primaryButtonX = screenWidth / 2 - primaryButtonWidth / 2;
             secondaryButtonX = primaryButtonX;
             secondaryButtonY = buttonTop + 24;
-            titleButtonWidth = primaryButtonWidth;
+            worldSpawnButtonX = primaryButtonX;
+            worldSpawnButtonY = buttonTop + 48;
             titleButtonX = primaryButtonX;
-            titleButtonY = buttonTop + 48;
+            titleButtonY = buttonTop + 72;
         }
 
         int titleY = compact ? 18 : 48;
@@ -756,6 +789,9 @@ public class PickYourBedDeathScreen extends Screen {
             secondaryButtonX,
             secondaryButtonY,
             secondaryButtonWidth,
+            worldSpawnButtonX,
+            worldSpawnButtonY,
+            worldSpawnButtonWidth,
             titleButtonX,
             titleButtonY,
             titleButtonWidth,
@@ -1023,6 +1059,9 @@ public class PickYourBedDeathScreen extends Screen {
         int secondaryButtonX,
         int secondaryButtonY,
         int secondaryButtonWidth,
+        int worldSpawnButtonX,
+        int worldSpawnButtonY,
+        int worldSpawnButtonWidth,
         int titleButtonX,
         int titleButtonY,
         int titleButtonWidth,

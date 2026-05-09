@@ -2,12 +2,14 @@ package pick.your;
 
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.BedListRequestPayload;
+import pick.your.network.payload.LastRespawnPayload;
 import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.RenameRespawnPayload;
 import pick.your.network.payload.SelectRespawnPayload;
 import pick.your.network.payload.SelectionResultPayload;
 import pick.your.network.payload.SurvivalStatsPayload;
 import pick.your.network.payload.SurvivalStatsRequestPayload;
+import pick.your.network.payload.WorldSpawnRespawnPayload;
 import pick.your.respawn.PickYourBedServer;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -22,6 +24,8 @@ public final class FabricPickYourBedNetworking {
         PayloadTypeRegistry.playC2S().register(RenameRespawnPayload.TYPE, RenameRespawnPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(SelectRespawnPayload.TYPE, SelectRespawnPayload.STREAM_CODEC);
         PayloadTypeRegistry.playC2S().register(SurvivalStatsRequestPayload.TYPE, SurvivalStatsRequestPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(WorldSpawnRespawnPayload.TYPE, WorldSpawnRespawnPayload.STREAM_CODEC);
+        PayloadTypeRegistry.playC2S().register(LastRespawnPayload.TYPE, LastRespawnPayload.STREAM_CODEC);
 
         PayloadTypeRegistry.playS2C().register(BedListPayload.TYPE, BedListPayload.STREAM_CODEC);
         PayloadTypeRegistry.playS2C().register(OpenEditorPayload.TYPE, OpenEditorPayload.STREAM_CODEC);
@@ -43,6 +47,14 @@ public final class FabricPickYourBedNetworking {
         ServerPlayNetworking.registerGlobalReceiver(SurvivalStatsRequestPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             runOnServer(context, "survival stats request", () -> PickYourBedServer.handleSurvivalStatsRequest(player));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(WorldSpawnRespawnPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            runOnServer(context, "world spawn respawn", () -> PickYourBedServer.handleWorldSpawnRespawn(player));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(LastRespawnPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            runOnServer(context, "last respawn", () -> PickYourBedServer.handleLastRespawn(player));
         });
     }
 

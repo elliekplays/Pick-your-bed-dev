@@ -3,12 +3,14 @@ package pick.your.client;
 import pick.your.Constants;
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.BedListRequestPayload;
+import pick.your.network.payload.LastRespawnPayload;
 import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.RenameRespawnPayload;
 import pick.your.network.payload.SelectRespawnPayload;
 import pick.your.network.payload.SelectionResultPayload;
 import pick.your.network.payload.SurvivalStatsPayload;
 import pick.your.network.payload.SurvivalStatsRequestPayload;
+import pick.your.network.payload.WorldSpawnRespawnPayload;
 import pick.your.platform.Services;
 import pick.your.respawn.RespawnEntry;
 import pick.your.respawn.RespawnEntryView;
@@ -25,6 +27,7 @@ public final class PickYourBedClient {
     private static List<RespawnEntryView> entries = List.of();
     private static boolean waitingForSelection;
     private static SurvivalStatsSnapshot survivalStats = SurvivalStatsSnapshot.vanilla();
+    private static String pendingRespawnMessage = "";
 
     private PickYourBedClient() {
     }
@@ -86,10 +89,25 @@ public final class PickYourBedClient {
         }
     }
 
+    public static void selectWorldSpawnForRespawn() {
+        waitingForSelection = true;
+        if (!sendToServer("world spawn respawn", new WorldSpawnRespawnPayload())) {
+            waitingForSelection = false;
+        }
+    }
+
+    public static void selectLastRespawnForRespawn() {
+        waitingForSelection = true;
+        if (!sendToServer("last respawn", new LastRespawnPayload())) {
+            waitingForSelection = false;
+        }
+    }
+
     public static void handleSelectionResult(SelectionResultPayload payload) {
         Minecraft minecraft = Minecraft.getInstance();
         if (payload.success()) {
             waitingForSelection = false;
+            pendingRespawnMessage = payload.message().isBlank() ? "" : payload.message();
             if (minecraft.player != null) {
                 minecraft.player.respawn();
             }
@@ -97,8 +115,23 @@ public final class PickYourBedClient {
         }
 
         waitingForSelection = false;
+        pendingRespawnMessage = "";
         if (!payload.message().isBlank() && minecraft.player != null) {
             minecraft.player.displayClientMessage(Component.literal(payload.message()), true);
+        }
+    }
+
+    public static void tickPendingRespawnMessage(Minecraft minecraft) {
+        if (pendingRespawnMessage.isBlank()) {
+            return;
+        }
+        if (minecraft.level == null || minecraft.getConnection() == null) {
+            pendingRespawnMessage = "";
+            return;
+        }
+        if (minecraft.player != null && !minecraft.player.isDeadOrDying()) {
+            minecraft.player.displayClientMessage(Component.literal(pendingRespawnMessage), true);
+            pendingRespawnMessage = "";
         }
     }
 

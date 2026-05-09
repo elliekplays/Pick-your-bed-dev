@@ -3,12 +3,14 @@ package pick.your;
 import pick.your.client.PickYourBedClient;
 import pick.your.network.payload.BedListPayload;
 import pick.your.network.payload.BedListRequestPayload;
+import pick.your.network.payload.LastRespawnPayload;
 import pick.your.network.payload.OpenEditorPayload;
 import pick.your.network.payload.RenameRespawnPayload;
 import pick.your.network.payload.SelectRespawnPayload;
 import pick.your.network.payload.SelectionResultPayload;
 import pick.your.network.payload.SurvivalStatsPayload;
 import pick.your.network.payload.SurvivalStatsRequestPayload;
+import pick.your.network.payload.WorldSpawnRespawnPayload;
 import pick.your.respawn.PickYourBedServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -33,6 +35,10 @@ public final class NeoForgePickYourBedNetworking {
             (payload, context) -> handleServer(context, "select", player -> PickYourBedServer.handleSelect(player, payload.id())));
         registrar.playToServer(SurvivalStatsRequestPayload.TYPE, SurvivalStatsRequestPayload.STREAM_CODEC,
             (payload, context) -> handleServer(context, "survival stats request", PickYourBedServer::handleSurvivalStatsRequest));
+        registrar.playToServer(WorldSpawnRespawnPayload.TYPE, WorldSpawnRespawnPayload.STREAM_CODEC,
+            (payload, context) -> handleServer(context, "world spawn respawn", PickYourBedServer::handleWorldSpawnRespawn));
+        registrar.playToServer(LastRespawnPayload.TYPE, LastRespawnPayload.STREAM_CODEC,
+            (payload, context) -> handleServer(context, "last respawn", PickYourBedServer::handleLastRespawn));
 
         registrar.playToClient(BedListPayload.TYPE, BedListPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleList);
         registrar.playToClient(OpenEditorPayload.TYPE, OpenEditorPayload.STREAM_CODEC, NeoForgePickYourBedNetworking::handleOpenEditor);

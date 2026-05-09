@@ -10,6 +10,9 @@ final class PickYourBedUiTextures {
     private static final ResourceLocation MENU_BACKGROUND = texture("menu_background.png");
     private static final ResourceLocation MENU_LIST_BACKGROUND = texture("menu_list_background.png");
     private static final ResourceLocation HEADER_SEPARATOR = texture("header_separator.png");
+    private static final ResourceLocation EDIT_ICON = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "textures/gui/edit.png");
+    private static final int EDIT_BUTTON_SIZE = 12;
+    private static final int EDIT_ICON_SIZE = 10;
 
     private PickYourBedUiTextures() {
     }
@@ -52,6 +55,22 @@ final class PickYourBedUiTextures {
         graphics.fill(left, top, left + width, top + height, overlayColor);
         graphics.fill(left, top, left + width, top + 1, 0x44FFFFFF);
         graphics.fill(left, top + height - 1, left + width, top + height, 0x88000000);
+    }
+
+    static void renderEditIcon(GuiGraphics graphics, int left, int top, boolean hovered) {
+        int right = left + EDIT_BUTTON_SIZE;
+        int bottom = top + EDIT_BUTTON_SIZE;
+        graphics.fill(left, top, right, bottom, hovered ? 0x882E3945 : 0xAA111820);
+        graphics.fill(left, top, right, top + 1, 0xEE000000);
+        graphics.fill(left, bottom - 1, right, bottom, 0xEE000000);
+        graphics.fill(left, top, left + 1, bottom, 0xEE000000);
+        graphics.fill(right - 1, top, right, bottom, 0xEE000000);
+        graphics.fill(left + 1, top + 1, right - 1, top + 2, hovered ? 0x99FFFFFF : 0x66FFFFFF);
+        graphics.fill(left + 1, top + 1, left + 2, bottom - 1, hovered ? 0x77FFFFFF : 0x44FFFFFF);
+        graphics.blit(EDIT_ICON, left + 1, top + 1, EDIT_ICON_SIZE, EDIT_ICON_SIZE, 0.0F, 0.0F, 16, 16, 16, 16);
+        if (hovered) {
+            graphics.fill(left + 1, top + 1, right - 1, bottom - 1, 0x22FFFFFF);
+        }
     }
 
     private static void renderHeaderSeparator(GuiGraphics graphics, int left, int top, int width) {

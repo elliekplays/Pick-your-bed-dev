@@ -4,7 +4,7 @@
 [![Fabric](https://img.shields.io/badge/Fabric-supported-DBD0B4?style=for-the-badge)](https://fabricmc.net/)
 [![NeoForge](https://img.shields.io/badge/NeoForge-supported-E04E14?style=for-the-badge)](https://neoforged.net/)
 [![Java 21](https://img.shields.io/badge/Java-21-007396?style=for-the-badge)](https://adoptium.net/temurin/releases/?version=21)
-[![Version](https://img.shields.io/badge/Version-1.3.10-80C7D4?style=for-the-badge)](gradle.properties)
+[![Version](https://img.shields.io/badge/Version-1.3.11-80C7D4?style=for-the-badge)](gradle.properties)
 [![License](https://img.shields.io/badge/License-Custom_Restricted-lightgrey?style=for-the-badge)](LICENSE.txt)
 
 Pick your bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
@@ -24,6 +24,7 @@ Instead of only using the most recent bed or respawn anchor, the mod keeps a per
 - Shows a warning icon on invalid points instead of an edit button.
 - Removes broken or destroyed points after the next respawn.
 - Keeps a fallback button for respawning at the last normal respawn point.
+- Includes a server config for limiting how many respawn points each player can save.
 - Supports Create, Create: Aeronautics, Comforts, and other vanilla-compatible respawn mods.
 
 ## Compatibility
@@ -37,6 +38,17 @@ Instead of only using the most recent bed or respawn anchor, the mod keeps a per
 | NeoForge | `21.1.228` or newer |
 
 For multiplayer, install Pick your bed on both the client and the server. The client handles the UI; the server stores and validates respawn points.
+
+## Server Config
+
+On startup, the server creates `config/pick_your_bed-server.properties`.
+
+```properties
+respawn_point_limit_enabled=false
+max_respawn_points_per_player=5
+```
+
+When the limit is enabled, new beds and respawn anchors stop registering once the player reaches the configured cap. Existing saved points can still be edited.
 
 ## Mod Compatibility
 

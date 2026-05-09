@@ -1,5 +1,6 @@
 package pick.your.mixin;
 
+import pick.your.client.PickYourBedClient;
 import pick.your.client.PickYourBedDeathScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DeathScreen;
@@ -53,6 +54,7 @@ public class MixinMinecraft {
         } else if (minecraft.screen instanceof PickYourBedDeathScreen && !shouldKeepPickYourBedDeathScreen(minecraft)) {
             minecraft.setScreen(null);
         }
+        PickYourBedClient.tickPendingRespawnMessage(minecraft);
     }
 
     private static void replaceVanillaDeathScreen(Minecraft minecraft, DeathScreen deathScreen) {

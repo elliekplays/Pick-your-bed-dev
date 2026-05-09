@@ -119,15 +119,14 @@ jobs:
           sha = os.environ["SHA"]
           repo = os.environ["REPOSITORY"]
           commit_url = f"https://github.com/{repo}/commit/{sha}"
+          releases_url = "https://github.com/elliekplays/Pick-Your-Bed/releases"
 
           payload = {
-              "username": "Pick Your Bed Builds",
-              "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
               "embeds": [
                   {
                       "title": "Build Complete",
                       "url": os.environ["RUN_URL"],
-                      "description": "Fabric and NeoForge jars are uploaded below this embed.",
+                      "description": f"Download the mod files below or visit [GitHub Releases]({releases_url}).",
                       "color": 5814783,
                       "author": {
                           "name": f"By: {os.environ['ACTOR']}",
@@ -168,8 +167,6 @@ jobs:
           }
 
           files_payload = {
-              "username": "Pick Your Bed Builds",
-              "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
               "content": "Built jars:",
           }
 

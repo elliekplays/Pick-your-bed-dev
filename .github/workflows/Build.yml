@@ -32,39 +32,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle
 
-      - name: make gradlew executable
-        run: chmod +x ./gradlew
-
       - name: build project
         run: ./gradlew build
 
       # ─────────────────────────────
-      # Upload Fabric jar
+      # Upload artifacts
       # ─────────────────────────────
-      - name: upload fabric artifact
+      - name: upload fabric
         uses: actions/upload-artifact@v4
         with:
           name: fabric-mod
           path: fabric/build/libs/*.jar
 
-      # ─────────────────────────────
-      # Upload NeoForge jar
-      # ─────────────────────────────
-      - name: upload neoforge artifact
+      - name: upload neoforge
         uses: actions/upload-artifact@v4
         with:
           name: neoforge-mod
           path: neoforge/build/libs/*.jar
 
       # ─────────────────────────────
-      # Discord notification + file upload
+      # Discord (SAFE + HOTLINKED EMBED)
       # ─────────────────────────────
-      - name: send discord message + jars
+      - name: send discord embed + jars
         if: success()
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           set -e
+
+          REPO="https://github.com/${{ github.repository }}"
+          BRANCH_URL="${REPO}/tree/${{ github.ref_name }}"
+          COMMIT_URL="${REPO}/commit/${{ github.sha }}"
+
+          # escape commit message safely (prevents JSON break)
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 200 | sed 's/"/\\"/g')
 
           echo "Sending Discord embed..."
 
@@ -75,29 +76,34 @@ jobs:
             \"embeds\": [{
               \"title\": \"🚀 Build Complete\",
               \"color\": 5814783,
+
               \"author\": {
                 \"name\": \"By: ${{ github.actor }}\",
                 \"icon_url\": \"https://github.com/${{ github.actor }}.png\"
               },
+
               \"fields\": [
                 {
                   \"name\": \"Branch\",
-                  \"value\": \"${{ github.ref_name }}\",
+                  \"value\": \"[${{ github.ref_name }}](${BRANCH_URL})\",
                   \"inline\": true
                 },
                 {
                   \"name\": \"Commit\",
-                  \"value\": \"\`${{ github.sha }}\`\",\n                  \"inline\": true
+                  \"value\": \"[\`${{ github.sha }}\`](${COMMIT_URL})\",
+                  \"inline\": true
                 },
                 {
                   \"name\": \"Message\",
-                  \"value\": \"${{ github.event.head_commit.message }}\",
+                  \"value\": \"${COMMIT_MSG}\",
                   \"inline\": false
                 }
               ],
+
               \"footer\": {
                 \"text\": \"GitHub Actions CI\"
               },
+
               \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
             }]
           }" \
@@ -105,12 +111,8 @@ jobs:
 
           echo "Uploading Fabric jar..."
           FABRIC_JAR=$(ls fabric/build/libs/*.jar | head -n 1)
-          if [ -f "$FABRIC_JAR" ]; then
-            curl -F "file=@$FABRIC_JAR" $WEBHOOK
-          fi
+          [ -f "$FABRIC_JAR" ] && curl -F "file=@$FABRIC_JAR" $WEBHOOK
 
           echo "Uploading NeoForge jar..."
           NEOFORGE_JAR=$(ls neoforge/build/libs/*.jar | head -n 1)
-          if [ -f "$NEOFORGE_JAR" ]; then
-            curl -F "file=@$NEOFORGE_JAR" $WEBHOOK
-          fi
+          [ -f "$NEOFORGE_JAR" ] && curl -F "file=@$NEOFORGE_JAR" $WEBHOOK

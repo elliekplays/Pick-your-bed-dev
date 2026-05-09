@@ -1,4 +1,4 @@
-# Pick your bed
+# Pick Your Bed
 
 [![Minecraft 1.21.1](https://img.shields.io/badge/Minecraft-1.21.1-62B47A?style=for-the-badge)](https://www.minecraft.net/)
 [![Fabric](https://img.shields.io/badge/Fabric-supported-DBD0B4?style=for-the-badge)](https://fabricmc.net/)
@@ -7,9 +7,16 @@
 [![Version](https://img.shields.io/badge/Version-1.3.11-80C7D4?style=for-the-badge)](gradle.properties)
 [![License](https://img.shields.io/badge/License-Custom_Restricted-lightgrey?style=for-the-badge)](LICENSE.txt)
 
-Pick your bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
+Pick Your Bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.
 
 Instead of only using the most recent bed or respawn anchor, the mod keeps a personal list of respawn points you have placed and lets you choose one when you die. It is built for **Minecraft 1.21.1** and supports both **Fabric** and **NeoForge**.
+
+## Official Downloads
+
+Please download Pick Your Bed only from the official pages once they are available.
+
+![Modrinth](https://img.shields.io/badge/Modrinth-soon-1BD96A?style=for-the-badge&logo=modrinth&logoColor=white)
+![CurseForge](https://img.shields.io/badge/CurseForge-soon-F16436?style=for-the-badge&logo=curseforge&logoColor=white)
 
 ## Features
 
@@ -37,7 +44,7 @@ Instead of only using the most recent bed or respawn anchor, the mod keeps a per
 | Fabric API | Required for Fabric |
 | NeoForge | `21.1.228` or newer |
 
-For multiplayer, install Pick your bed on both the client and the server. The client handles the UI; the server stores and validates respawn points.
+For multiplayer, install Pick Your Bed on both the client and the server. The client handles the UI; the server stores and validates respawn points.
 
 ## Server Config
 
@@ -57,7 +64,17 @@ When the limit is enabled, new beds and respawn anchors stop registering once th
 | [Comforts](https://www.curseforge.com/minecraft/mc-mods/comforts) | Sleeping bags and hammocks are ignored because they are sleep blocks, not saved respawn points. |
 | [Create](https://modrinth.com/mod/create) | Beds and respawn anchors are tagged as non-movable so contraptions do not casually move saved respawn blocks. |
 | [Create: Aeronautics](https://www.curseforge.com/minecraft/mc-mods/create-aeronautics) | Ship beds are recorded and listed like normal beds, matching vanilla's working respawn behavior on airships. |
-| Other vanilla-compatible respawn mods | If a mod sets the player's normal Minecraft respawn point to a real bed or respawn anchor, Pick your bed can backfill it into the death-screen list. Custom respawn systems that do not use Minecraft's normal respawn position are not automatically supported. |
+| Other vanilla-compatible respawn mods | If a mod sets the player's normal Minecraft respawn point to a real bed or respawn anchor, Pick Your Bed can backfill it into the death-screen list. Custom respawn systems that do not use Minecraft's normal respawn position are not automatically supported. |
+
+## Roadmap
+
+These are planned ideas I want to add whenever I have free time. Nothing here has a fixed release date yet.
+
+- [ ] UI redesigns for the death screen and respawn list.
+- [ ] UI polish and quality-of-life improvements.
+- [ ] A built-in statistics system, with the goal of being clearer and more reliable than vanilla statistics.
+- [ ] Ports to newer Minecraft versions.
+- [ ] More mod support and compatibility for other respawn-related mods.
 
 ## Installing Prebuilt Jars
 
@@ -114,6 +131,6 @@ For bug reports or support, include your Minecraft version, loader, mod version,
 
 ## License
 
-Pick your bed is source-available under the [Pick your bed Custom Restricted License](LICENSE.txt).
+Pick Your Bed is source-available under the [Pick Your Bed Custom Restricted License](LICENSE.txt).
 
 You may download, install, play, study, and privately modify the mod. You may not reupload, redistribute, sell, publish modified builds, or publish modified forks without permission from **elliekplays**.

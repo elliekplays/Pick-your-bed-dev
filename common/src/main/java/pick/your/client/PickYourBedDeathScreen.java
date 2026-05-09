@@ -11,6 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.achievement.StatsScreen;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.GenericMessageScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -24,26 +25,43 @@ import net.minecraft.stats.Stats;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class PickYourBedDeathScreen extends Screen {
-    private static final int BACKGROUND_TOP = 0x60500000;
-    private static final int BACKGROUND_BOTTOM = 0xA0803030;
-    private static final int PANEL_COLOR = 0xD82D343E;
-    private static final int PANEL_HEADER = 0xCC343D49;
-    private static final int PANEL_BORDER = 0xD067717E;
-    private static final int ACCENT = 0xFF80C7D4;
-    private static final int SELECTED = 0xE02F6D79;
-    private static final int ROW = 0xCC3B444F;
-    private static final int ROW_HOVER = 0xD947525F;
-    private static final int INVALID_ROW = 0x993A3F45;
+    private static final int BACKGROUND_TOP = 0x38000000;
+    private static final int BACKGROUND_BOTTOM = 0x68000000;
+    private static final int PANEL_COLOR = 0xA81B2027;
+    private static final int PANEL_HEADER = 0x8022272F;
+    private static final int SELECTED = 0x666F8190;
+    private static final int ROW = 0x3A000000;
+    private static final int ROW_HOVER = 0x4CFFFFFF;
+    private static final int INVALID_ROW = 0x55000000;
+    private static final int LIST_HEADER_HEIGHT = 38;
+    private static final int LIST_TITLE_Y_OFFSET = LIST_HEADER_HEIGHT + 8;
+    private static final int LIST_ROWS_TOP_OFFSET = LIST_HEADER_HEIGHT + 24;
+    private static final int LIST_BOTTOM_PADDING = 10;
     private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
-    private static final String HARDCORE_QUOTE = "\"Another story of a legend comes to an end\"";
+    private static final String[] HARDCORE_QUOTES = {
+        "Well fought. Your next run starts wiser.",
+        "You made it this far. Carry that forward.",
+        "Every end teaches the next beginning.",
+        "Rest, regroup, and try again.",
+        "That run mattered. Build on it.",
+        "You held on. Now come back stronger.",
+        "Good run. The next story can go further.",
+        "One more lesson, one more chance.",
+        "You did well. Keep moving forward.",
+        "The world won this round. You can win the next."
+    };
+    private static int lastHardcoreQuoteIndex = -1;
 
     private final Component causeOfDeath;
     private final boolean hardcore;
+    private final String hardcoreQuote;
     private final List<Button> exitButtons = Lists.newArrayList();
     private Component deathScore = CommonComponents.EMPTY;
     private Button selectedRespawnButton;
+    private Button moreStatsButton;
     private EditBox searchBox;
     private RespawnFilter filter = RespawnFilter.ALL;
     private String searchText = "";
@@ -53,12 +71,14 @@ public class PickYourBedDeathScreen extends Screen {
     private int scrollIndex;
     private boolean initializedOnce;
     private boolean spectateRequested;
+    private boolean distanceInKilometers;
     private long frozenVanillaPlayTicks = -1L;
 
     public PickYourBedDeathScreen(Component causeOfDeath, boolean hardcore) {
         super(Component.translatable(hardcore ? "deathScreen.title.hardcore" : "deathScreen.title"));
         this.causeOfDeath = causeOfDeath;
         this.hardcore = hardcore;
+        this.hardcoreQuote = hardcore ? nextHardcoreQuote() : "";
     }
 
     @Override
@@ -74,6 +94,7 @@ public class PickYourBedDeathScreen extends Screen {
         this.exitButtons.clear();
         this.searchBox = null;
         this.selectedRespawnButton = null;
+        this.moreStatsButton = null;
         this.clearWidgets();
 
         Layout layout = layout();
@@ -98,6 +119,12 @@ public class PickYourBedDeathScreen extends Screen {
             this.exitButtons.add(this.addRenderableWidget(Button.builder(buttonLabel("Exit to Main Menu", "Exit", hardcoreLayout.buttonWidth), button -> handleExitToTitleScreen())
                 .bounds(hardcoreLayout.buttonX, hardcoreLayout.exitY, hardcoreLayout.buttonWidth, 20)
                 .build()));
+            if (hardcoreLayout.showMoreButton) {
+                this.moreStatsButton = this.addRenderableWidget(Button.builder(Component.literal("More"), button -> openVanillaStatsScreen())
+                    .bounds(hardcoreLayout.moreButtonX, hardcoreLayout.moreButtonY, hardcoreLayout.moreButtonWidth, 16)
+                    .build());
+                this.exitButtons.add(this.moreStatsButton);
+            }
             PickYourBedClient.requestSurvivalStats();
         } else {
             PickYourBedClient.requestEntries();
@@ -239,7 +266,7 @@ public class PickYourBedDeathScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fillGradient(0, 0, this.width, this.height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
+        PickYourBedUiTextures.renderCreateWorldBackground(graphics, this.width, this.height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
     }
 
     @Override
@@ -252,6 +279,10 @@ public class PickYourBedDeathScreen extends Screen {
                     this.handleComponentClicked(style);
                     return false;
                 }
+            }
+            if (insideDistanceToggle((int)mouseX, (int)mouseY, layout)) {
+                this.distanceInKilometers = !this.distanceInKilometers;
+                return true;
             }
             return super.mouseClicked(mouseX, mouseY, button);
         }
@@ -306,14 +337,10 @@ public class PickYourBedDeathScreen extends Screen {
         int top = layout.panelTop;
         int width = layout.panelWidth;
         int height = layout.panelHeight;
-        graphics.fill(left, top, left + width, top + height, PANEL_COLOR);
-        graphics.fill(left + 1, top + 1, left + width - 1, top + 30, PANEL_HEADER);
-        graphics.fill(left, top, left + width, top + 1, ACCENT);
-        graphics.fill(left, top + height - 1, left + width, top + height, PANEL_BORDER);
-        graphics.fill(left, top, left + 1, top + height, PANEL_BORDER);
-        graphics.fill(left + width - 1, top, left + width, top + height, PANEL_BORDER);
+        PickYourBedUiTextures.renderPanel(graphics, left, top, width, height, PANEL_COLOR);
+        PickYourBedUiTextures.renderPanelHeader(graphics, left + 1, top + 1, width - 2, LIST_HEADER_HEIGHT, PANEL_HEADER);
 
-        graphics.drawString(this.font, "Choose respawn point", left + 14, top + 36, 0xFFFFFFFF, false);
+        graphics.drawString(this.font, "Choose respawn point", left + 14, top + LIST_TITLE_Y_OFFSET, 0xFFFFFFFF, false);
 
         List<RespawnEntryView> entries = filteredEntries();
         if (entries.isEmpty()) {
@@ -340,18 +367,19 @@ public class PickYourBedDeathScreen extends Screen {
             boolean hovered = mouseX >= left + 12 && mouseX <= left + width - 12 && mouseY >= rowY && mouseY <= rowY + 22;
             boolean selected = entry.id() == this.selectedId;
             int rowColor = entry.valid() ? (selected ? SELECTED : hovered ? ROW_HOVER : ROW) : INVALID_ROW;
-            graphics.fill(left + 12, rowY, left + width - 12, rowY + 22, rowColor);
+            PickYourBedUiTextures.renderListRow(graphics, left + 12, rowY, width - 24, 22, rowColor);
             graphics.fill(left + 12, rowY, left + 15, rowY + 22, entry.type() == RespawnEntryType.BED ? 0xFFE05B65 : 0xFFB48AF1);
 
             int textColor = entry.valid() ? 0xFFF2F5F7 : 0xFF848B92;
             int subColor = entry.valid() ? 0xFFAAB5BF : 0xFF6F767D;
             int textMaxWidth = width - 74;
-            graphics.drawString(this.font, trimToWidth(entry.name(), textMaxWidth), left + 22, rowY + 4, textColor, false);
+            int textBlockTop = rowY + Math.max(3, (22 - (this.font.lineHeight * 2 + 1)) / 2 + 2);
+            graphics.drawString(this.font, trimToWidth(entry.name(), textMaxWidth), left + 22, textBlockTop, textColor, false);
             String subtitle = entry.type().displayName().getString() + " - " + entry.dimensionText();
             if (!entry.valid()) {
                 subtitle = entry.invalidReason();
             }
-            graphics.drawString(this.font, trimToWidth(subtitle, textMaxWidth), left + 22, rowY + 14, subColor, false);
+            graphics.drawString(this.font, trimToWidth(subtitle, textMaxWidth), left + 22, textBlockTop + this.font.lineHeight + 1, subColor, false);
 
             if (entry.valid()) {
                 drawPencil(graphics, left + width - 28, rowY + 5, hovered ? 0xFFFFFFFF : 0xFFB8C2CC);
@@ -386,27 +414,47 @@ public class PickYourBedDeathScreen extends Screen {
         int top = layout.infoTop;
         int width = layout.infoWidth;
         int height = layout.infoHeight;
-        graphics.fill(left, top, left + width, top + height, 0xB820242B);
-        graphics.fill(left + 1, top + 1, left + width - 1, top + 18, 0xAA2F1218);
-        graphics.fill(left, top, left + width, top + 1, 0xFFFF5555);
-        graphics.fill(left, top + height - 1, left + width, top + height, 0xAA883C45);
-        graphics.fill(left, top, left + 1, top + height, 0xAA883C45);
-        graphics.fill(left + width - 1, top, left + width, top + height, 0xAA883C45);
+        PickYourBedUiTextures.renderPanel(graphics, left, top, width, height, 0xA620242B);
+        PickYourBedUiTextures.renderPanelHeader(graphics, left + 1, top + 1, width - 2, 18, 0x8A2F1218);
+        graphics.fill(left, top, left + width, top + 1, 0xCCB24A55);
 
         graphics.drawString(this.font, "Final Record", left + 12, top + 6, 0xFFFFE1E1, false);
         String daysLabel = width >= 190 ? "Minecraft days" : "Days";
         String timeLabel = width >= 190 ? "Play time" : "Time";
-        int valueWidth = Math.max(32, width - 24 - Math.max(this.font.width(daysLabel), this.font.width(timeLabel)) - 10);
-        String daysValue = trimToWidth(stats.minecraftDays(), valueWidth);
-        String timeValue = trimToWidth(stats.playTime(), valueWidth);
-        graphics.drawString(this.font, daysLabel, left + 12, top + 25, 0xFFABB4BF, false);
-        graphics.drawString(this.font, daysValue, left + width - 12 - this.font.width(daysValue), top + 25, 0xFFFFFFFF, false);
-        graphics.drawString(this.font, timeLabel, left + 12, top + 37, 0xFFABB4BF, false);
-        graphics.drawString(this.font, timeValue, left + width - 12 - this.font.width(timeValue), top + 37, 0xFFFFFFFF, false);
+        drawHardcoreStatRow(graphics, daysLabel, stats.minecraftDays(), left, width, top + 25, 0xFFABB4BF, 0xFFFFFFFF);
+        drawHardcoreStatRow(graphics, timeLabel, stats.playTime(), left, width, top + 37, 0xFFABB4BF, 0xFFFFFFFF);
+
+        if (layout.showExtendedStats) {
+            String placedLabel = width >= 200 ? "Blocks placed" : "Placed";
+            String brokenLabel = width >= 200 ? "Blocks broken" : "Broken";
+            String distanceLabel = this.distanceInKilometers ? "Distance (km)" : "Distance (m)";
+            drawHardcoreStatRow(graphics, placedLabel, stats.blocksPlaced(), left, width, top + 49, 0xFFABB4BF, 0xFFFFFFFF);
+            drawHardcoreStatRow(graphics, brokenLabel, stats.blocksBroken(), left, width, top + 61, 0xFFABB4BF, 0xFFFFFFFF);
+            drawHardcoreStatRow(graphics, distanceLabel, stats.distance(), left, width, top + 73, 0xFFFFD36A, 0xFFFFF2C2);
+        }
 
         if (layout.showQuote) {
-            graphics.drawCenteredString(this.font, Component.literal(trimToWidth(HARDCORE_QUOTE, width - 24)), left + width / 2, top + height - 17, 0xFFFFB6BE);
+            graphics.drawCenteredString(this.font, Component.literal(trimToWidth("\"" + this.hardcoreQuote + "\"", width - 24)), left + width / 2, top + height - 17, 0xFFFFB6BE);
         }
+    }
+
+    private void drawHardcoreStatRow(GuiGraphics graphics, String label, String value, int left, int width, int y, int labelColor, int valueColor) {
+        int labelX = left + 12;
+        int right = left + width - 12;
+        String trimmedLabel = trimToWidth(label, Math.max(28, width / 2));
+        int valueWidth = Math.max(24, right - labelX - this.font.width(trimmedLabel) - 8);
+        String trimmedValue = trimToWidth(value, valueWidth);
+        graphics.drawString(this.font, trimmedLabel, labelX, y, labelColor, false);
+        graphics.drawString(this.font, trimmedValue, right - this.font.width(trimmedValue), y, valueColor, false);
+    }
+
+    private static String nextHardcoreQuote() {
+        int index = ThreadLocalRandom.current().nextInt(HARDCORE_QUOTES.length);
+        if (HARDCORE_QUOTES.length > 1 && index == lastHardcoreQuoteIndex) {
+            index = (index + 1) % HARDCORE_QUOTES.length;
+        }
+        lastHardcoreQuoteIndex = index;
+        return HARDCORE_QUOTES[index];
     }
 
     private void drawPencil(GuiGraphics graphics, int x, int y, int color) {
@@ -537,7 +585,13 @@ public class PickYourBedDeathScreen extends Screen {
     private HardcoreStats hardcoreStats() {
         PickYourBedClient.SurvivalStatsSnapshot snapshot = PickYourBedClient.survivalStats();
         long playTicks = snapshot.useServerStats() ? snapshot.playTicks() : frozenVanillaPlayTicks();
-        return new HardcoreStats(formatMinecraftDays(playTicks), formatPlayTime(playTicks));
+        return new HardcoreStats(
+            formatMinecraftDays(playTicks),
+            formatPlayTime(playTicks),
+            formatCount(snapshot.blocksPlaced()),
+            formatCount(snapshot.blocksBroken()),
+            formatDistance(snapshot.distanceCm())
+        );
     }
 
     private long frozenVanillaPlayTicks() {
@@ -581,6 +635,33 @@ public class PickYourBedDeathScreen extends Screen {
         return seconds + "s";
     }
 
+    private String formatCount(long count) {
+        return String.format(Locale.ROOT, "%,d", Math.max(0L, count));
+    }
+
+    private String formatDistance(long centimeters) {
+        double meters = Math.max(0L, centimeters) / 100.0D;
+        if (this.distanceInKilometers) {
+            return String.format(Locale.ROOT, "%.2f km", meters / 1000.0D);
+        }
+        if (meters >= 100.0D) {
+            return String.format(Locale.ROOT, "%.0f m", meters);
+        }
+        return String.format(Locale.ROOT, "%.1f m", meters);
+    }
+
+    private boolean insideDistanceToggle(int mouseX, int mouseY, HardcoreLayout layout) {
+        if (!layout.showExtendedStats || !layout.showInfoPanel) {
+            return false;
+        }
+
+        int rowY = layout.infoTop + 73;
+        return mouseX >= layout.infoLeft + 10
+            && mouseX <= layout.infoLeft + layout.infoWidth - 10
+            && mouseY >= rowY - 2
+            && mouseY <= rowY + 10;
+    }
+
     private boolean insideList(int mouseX, int mouseY) {
         Layout layout = layout();
         return mouseX >= layout.panelLeft + 12
@@ -619,15 +700,15 @@ public class PickYourBedDeathScreen extends Screen {
         int panelTop = preferredPanelTop;
         int panelHeight;
         if (availableHeight >= 84) {
-            panelHeight = Math.min(188, availableHeight);
+            panelHeight = Math.min(208, availableHeight);
         } else {
             panelTop = Math.max(8, Math.min(preferredPanelTop, maxButtonTop - 84));
             panelHeight = Math.max(52, maxButtonTop - panelTop - 10);
         }
 
         panelHeight = Math.max(52, Math.min(panelHeight, Math.max(52, screenHeight - panelTop - buttonBlockHeight - 20)));
-        int rowsTop = panelTop + 52;
-        int rowAreaHeight = panelHeight - 62;
+        int rowsTop = panelTop + LIST_ROWS_TOP_OFFSET;
+        int rowAreaHeight = panelHeight - LIST_ROWS_TOP_OFFSET - LIST_BOTTOM_PADDING;
         int visibleRows = rowAreaHeight >= 22 ? Math.max(1, (rowAreaHeight + 3) / 25) : 0;
         int buttonTop = Math.min(maxButtonTop, panelTop + panelHeight + 10);
 
@@ -703,7 +784,7 @@ public class PickYourBedDeathScreen extends Screen {
         int buttonGap = 4;
         int buttonBlockHeight = 20 + buttonGap + 20;
 
-        int infoWidth = clamp(screenWidth - 48, 154, 340);
+        int infoWidth = clamp(screenWidth - 48, 154, 380);
         if (screenWidth < infoWidth + 16) {
             infoWidth = Math.max(110, screenWidth - 16);
         }
@@ -712,12 +793,20 @@ public class PickYourBedDeathScreen extends Screen {
         boolean showDeathTitle = screenHeight >= 104 && screenWidth >= 140;
         boolean showCause = this.causeOfDeath != null && screenHeight >= 132 && screenWidth >= 160;
         boolean showInfoPanel = screenHeight >= 154 && screenWidth >= 128;
-        int infoHeight = showInfoPanel ? screenHeight >= 260 ? 78 : screenHeight >= 210 ? 68 : 52 : 0;
+        int infoHeight = showInfoPanel ? screenHeight >= 330 ? 138 : screenHeight >= 270 ? 126 : screenHeight >= 220 ? 108 : 78 : 0;
         int stackHeight = hardcoreStackHeight(showDeathTitle, showCause, showInfoPanel, infoHeight, smallGap, largeGap, buttonBlockHeight);
         int availableHeight = Math.max(0, screenHeight - edge * 2);
         if (stackHeight > availableHeight && showCause) {
             showCause = false;
             stackHeight = hardcoreStackHeight(showDeathTitle, false, showInfoPanel, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        }
+        if (stackHeight > availableHeight && showInfoPanel && infoHeight > 108) {
+            infoHeight = 108;
+            stackHeight = hardcoreStackHeight(showDeathTitle, showCause, true, infoHeight, smallGap, largeGap, buttonBlockHeight);
+        }
+        if (stackHeight > availableHeight && showInfoPanel && infoHeight > 78) {
+            infoHeight = 78;
+            stackHeight = hardcoreStackHeight(showDeathTitle, showCause, true, infoHeight, smallGap, largeGap, buttonBlockHeight);
         }
         if (stackHeight > availableHeight && showInfoPanel && infoHeight > 52) {
             infoHeight = 52;
@@ -771,7 +860,12 @@ public class PickYourBedDeathScreen extends Screen {
         int maxButtonTop = Math.max(edge, screenHeight - edge - buttonBlockHeight);
         int spectateY = clamp(y, edge, maxButtonTop);
         int exitY = spectateY + 20 + buttonGap;
-        boolean showQuote = infoHeight >= 68;
+        boolean showExtendedStats = showInfoPanel && infoHeight >= 108;
+        boolean showMoreButton = showInfoPanel && infoHeight >= 108 && infoWidth >= 128;
+        boolean showQuote = showInfoPanel && infoHeight >= 136;
+        int moreButtonWidth = showMoreButton ? Math.min(82, Math.max(58, infoWidth - 28)) : 0;
+        int moreButtonX = showMoreButton ? infoLeft + (infoWidth - moreButtonWidth) / 2 : 0;
+        int moreButtonY = showMoreButton ? infoTop + infoHeight - (showQuote ? 42 : 22) : 0;
         return new HardcoreLayout(
             buttonX,
             buttonWidth,
@@ -787,6 +881,11 @@ public class PickYourBedDeathScreen extends Screen {
             showDeathTitle,
             showCause,
             showInfoPanel,
+            showExtendedStats,
+            showMoreButton,
+            moreButtonX,
+            moreButtonY,
+            moreButtonWidth,
             showQuote
         );
     }
@@ -845,7 +944,7 @@ public class PickYourBedDeathScreen extends Screen {
         }
 
         int filterX = right - filterWidth;
-        return new HeaderControls(left, filterX, layout.panelTop + 12, Math.max(0, searchWidth), gap, filterWidths, filterLabels);
+        return new HeaderControls(left, filterX, layout.panelTop + 10, Math.max(0, searchWidth), gap, filterWidths, filterLabels);
     }
 
     private String[] filterLabels(int availableWidth, int gap) {
@@ -962,14 +1061,39 @@ public class PickYourBedDeathScreen extends Screen {
         boolean showDeathTitle,
         boolean showCause,
         boolean showInfoPanel,
+        boolean showExtendedStats,
+        boolean showMoreButton,
+        int moreButtonX,
+        int moreButtonY,
+        int moreButtonWidth,
         boolean showQuote
     ) {
     }
 
     private record HardcoreStats(
         String minecraftDays,
-        String playTime
+        String playTime,
+        String blocksPlaced,
+        String blocksBroken,
+        String distance
     ) {
+    }
+
+    private void openVanillaStatsScreen() {
+        if (this.minecraft != null && this.minecraft.player != null) {
+            this.minecraft.setScreen(new DeathStatsScreen(this));
+        }
+    }
+
+    private class DeathStatsScreen extends StatsScreen {
+        DeathStatsScreen(Screen parent) {
+            super(parent, PickYourBedDeathScreen.this.minecraft.player.getStats());
+        }
+
+        @Override
+        public void onClose() {
+            PickYourBedDeathScreen.this.minecraft.setScreen(PickYourBedDeathScreen.this);
+        }
     }
 
     private void handleExitToTitleScreen() {

@@ -1,6 +1,7 @@
 package pick.your.client;
 
 import pick.your.respawn.RespawnEntryView;
+import pick.your.respawn.RespawnEntry;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -10,12 +11,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public class BedNameEditScreen extends Screen {
-    private static final int BACKGROUND_TOP = 0x70000000;
-    private static final int BACKGROUND_BOTTOM = 0xA8000000;
-    private static final int PANEL_COLOR = 0xD82D343E;
-    private static final int PANEL_HEADER = 0xCC343D49;
-    private static final int PANEL_BORDER = 0xD067717E;
-    private static final int ACCENT = 0xFF80C7D4;
+    private static final int BACKGROUND_TOP = 0x48000000;
+    private static final int BACKGROUND_BOTTOM = 0x78000000;
+    private static final int PANEL_COLOR = 0xA81B2027;
+    private static final int PANEL_HEADER = 0x8022272F;
 
     private final Screen parent;
     private final RespawnEntryView entry;
@@ -35,7 +34,7 @@ public class BedNameEditScreen extends Screen {
         String initialName = this.draftName == null ? this.entry.name() : this.draftName;
 
         this.nameBox = new EditBox(this.font, layout.left + 18, layout.nameBoxY, layout.panelWidth - 36, 20, Component.literal("Name"));
-        this.nameBox.setMaxLength(32);
+        this.nameBox.setMaxLength(RespawnEntry.MAX_NAME_LENGTH);
         this.nameBox.setValue(initialName);
         this.nameBox.setResponder(value -> {
             this.draftName = value;
@@ -59,12 +58,8 @@ public class BedNameEditScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         EditLayout layout = layout();
-        graphics.fill(layout.left, layout.top, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_COLOR);
-        graphics.fill(layout.left + 1, layout.top + 1, layout.left + layout.panelWidth - 1, layout.top + 40, PANEL_HEADER);
-        graphics.fill(layout.left, layout.top, layout.left + layout.panelWidth, layout.top + 1, ACCENT);
-        graphics.fill(layout.left, layout.top + layout.panelHeight - 1, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_BORDER);
-        graphics.fill(layout.left, layout.top, layout.left + 1, layout.top + layout.panelHeight, PANEL_BORDER);
-        graphics.fill(layout.left + layout.panelWidth - 1, layout.top, layout.left + layout.panelWidth, layout.top + layout.panelHeight, PANEL_BORDER);
+        PickYourBedUiTextures.renderPanel(graphics, layout.left, layout.top, layout.panelWidth, layout.panelHeight, PANEL_COLOR);
+        PickYourBedUiTextures.renderPanelHeader(graphics, layout.left + 1, layout.top + 1, layout.panelWidth - 2, 40, PANEL_HEADER);
         if (layout.showTitle) {
             graphics.drawString(this.font, "Edit name", layout.left + 18, layout.top + 14, 0xFFFFFFFF, false);
         }
@@ -76,7 +71,7 @@ public class BedNameEditScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        graphics.fillGradient(0, 0, this.width, this.height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
+        PickYourBedUiTextures.renderCreateWorldBackground(graphics, this.width, this.height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
     }
 
     @Override

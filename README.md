@@ -4,7 +4,7 @@
 [![Fabric](https://img.shields.io/badge/Fabric-supported-DBD0B4?style=for-the-badge)](https://fabricmc.net/)
 [![NeoForge](https://img.shields.io/badge/NeoForge-supported-E04E14?style=for-the-badge)](https://neoforged.net/)
 [![Java 21](https://img.shields.io/badge/Java-21-007396?style=for-the-badge)](https://adoptium.net/temurin/releases/?version=21)
-[![Version](https://img.shields.io/badge/Version-1.3.9-80C7D4?style=for-the-badge)](gradle.properties)
+[![Version](https://img.shields.io/badge/Version-1.3.10-80C7D4?style=for-the-badge)](gradle.properties)
 [![License](https://img.shields.io/badge/License-Custom_Restricted-lightgrey?style=for-the-badge)](LICENSE.txt)
 
 Pick your bed gives Minecraft's death screen the choice it should have had: pick where you want to come back.

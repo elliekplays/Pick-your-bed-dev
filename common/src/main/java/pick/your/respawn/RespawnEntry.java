@@ -8,6 +8,8 @@ import net.minecraft.world.level.Level;
 import java.util.UUID;
 
 public class RespawnEntry {
+    public static final int MAX_NAME_LENGTH = 20;
+
     private final long id;
     private final UUID owner;
     private final RespawnEntryType type;
@@ -90,10 +92,6 @@ public class RespawnEntry {
             trimmed = fallback;
         }
 
-        if (trimmed.length() > 32) {
-            trimmed = trimmed.substring(0, 32);
-        }
-
         StringBuilder clean = new StringBuilder(trimmed.length());
         for (int i = 0; i < trimmed.length(); i++) {
             char c = trimmed.charAt(i);
@@ -102,6 +100,13 @@ public class RespawnEntry {
             }
         }
 
-        return clean.isEmpty() ? fallback : clean.toString();
+        if (clean.isEmpty()) {
+            clean.append(fallback);
+        }
+        if (clean.length() > MAX_NAME_LENGTH) {
+            clean.setLength(MAX_NAME_LENGTH);
+        }
+
+        return clean.toString();
     }
 }

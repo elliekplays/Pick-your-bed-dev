@@ -61,7 +61,10 @@ public final class PickYourBedClient {
     }
 
     public static void rename(long id, String name) {
-        String cleanName = RespawnEntry.sanitizeName(name, "Bed");
+        String fallbackName = find(id)
+            .map(entry -> RespawnEntry.fallbackName(entry.type()))
+            .orElse("Bed");
+        String cleanName = RespawnEntry.sanitizeName(name, fallbackName);
         List<RespawnEntryView> next = new ArrayList<>(entries.size());
         for (RespawnEntryView entry : entries) {
             next.add(entry.id() == id
@@ -100,7 +103,13 @@ public final class PickYourBedClient {
     }
 
     public static void handleSurvivalStats(SurvivalStatsPayload payload) {
-        survivalStats = new SurvivalStatsSnapshot(payload.useServerStats(), Math.max(0L, payload.playTicks()));
+        survivalStats = new SurvivalStatsSnapshot(
+            payload.useServerStats(),
+            payload.playTicks(),
+            payload.blocksPlaced(),
+            payload.blocksBroken(),
+            payload.distanceCm()
+        );
     }
 
     public static void resetSurvivalStats() {
@@ -142,9 +151,22 @@ public final class PickYourBedClient {
         }
     }
 
-    public record SurvivalStatsSnapshot(boolean useServerStats, long playTicks) {
+    public record SurvivalStatsSnapshot(
+        boolean useServerStats,
+        long playTicks,
+        long blocksPlaced,
+        long blocksBroken,
+        long distanceCm
+    ) {
+        public SurvivalStatsSnapshot {
+            playTicks = Math.max(0L, playTicks);
+            blocksPlaced = Math.max(0L, blocksPlaced);
+            blocksBroken = Math.max(0L, blocksBroken);
+            distanceCm = Math.max(0L, distanceCm);
+        }
+
         static SurvivalStatsSnapshot vanilla() {
-            return new SurvivalStatsSnapshot(false, 0L);
+            return new SurvivalStatsSnapshot(false, 0L, 0L, 0L, 0L);
         }
     }
 }

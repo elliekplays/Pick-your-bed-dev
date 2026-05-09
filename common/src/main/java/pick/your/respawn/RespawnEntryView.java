@@ -13,13 +13,18 @@ public record RespawnEntryView(
     boolean valid,
     String invalidReason
 ) {
+    public RespawnEntryView {
+        name = RespawnEntry.sanitizeName(name, RespawnEntry.fallbackName(type));
+        invalidReason = invalidReason == null ? "" : invalidReason;
+    }
+
     public static RespawnEntryView read(FriendlyByteBuf buf) {
         return new RespawnEntryView(
             buf.readVarLong(),
             buf.readEnum(RespawnEntryType.class),
             buf.readResourceLocation(),
             buf.readBlockPos(),
-            buf.readUtf(32),
+            buf.readUtf(RespawnEntry.MAX_NAME_LENGTH),
             buf.readBoolean(),
             buf.readUtf(80)
         );
@@ -30,7 +35,7 @@ public record RespawnEntryView(
         buf.writeEnum(this.type);
         buf.writeResourceLocation(this.dimension);
         buf.writeBlockPos(this.pos);
-        buf.writeUtf(this.name, 32);
+        buf.writeUtf(RespawnEntry.sanitizeName(this.name, RespawnEntry.fallbackName(this.type)), RespawnEntry.MAX_NAME_LENGTH);
         buf.writeBoolean(this.valid);
         buf.writeUtf(this.invalidReason, 80);
     }

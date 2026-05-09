@@ -1,6 +1,7 @@
 package pick.your.network.payload;
 
 import pick.your.Constants;
+import pick.your.respawn.RespawnEntry;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -14,12 +15,12 @@ public record RenameRespawnPayload(long id, String name) implements CustomPacket
     );
 
     private RenameRespawnPayload(FriendlyByteBuf buf) {
-        this(buf.readVarLong(), buf.readUtf(32));
+        this(buf.readVarLong(), buf.readUtf(RespawnEntry.MAX_NAME_LENGTH));
     }
 
     private void write(FriendlyByteBuf buf) {
         buf.writeVarLong(this.id);
-        buf.writeUtf(this.name, 32);
+        buf.writeUtf(this.name, RespawnEntry.MAX_NAME_LENGTH);
     }
 
     @Override

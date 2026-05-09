@@ -7,8 +7,10 @@
   "mixins": [
     "MixinBedBlock",
     "MixinBlock",
+    "MixinBlockItem",
     "MixinChunkMap",
-    "MixinRespawnAnchorBlock"
+    "MixinRespawnAnchorBlock",
+    "MixinServerPlayerGameMode"
   ],
   "client": [
     "DeathScreenAccessor",

@@ -19,3 +19,7 @@ hs_err_pid*
 
 # Common working directory
 run
+
+# Local asset dumps / temporary exports
+temp_assetstorage/
+textureexport_temp/

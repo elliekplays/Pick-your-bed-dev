@@ -15,7 +15,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BedBlock;
@@ -25,7 +24,6 @@ import net.minecraft.world.level.block.state.properties.BedPart;
 
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalLong;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -100,14 +98,15 @@ public final class PickYourBedServer {
     public static void handleSurvivalStatsRequest(ServerPlayer player) {
         SurvivalStatsSavedData data = SurvivalStatsSavedData.get(player.server);
         data.initializeForServer(player.server);
-        if (data.modTimerEnabled()) {
-            recordHardcoreDeathIfNeeded(data, player);
-            OptionalLong deathPlayTicks = data.deathPlayTicks(player.getUUID());
-            sendToClient(player, new SurvivalStatsPayload(true, deathPlayTicks.orElse(data.playTicks(player.getUUID()))));
-            return;
-        }
-
-        sendToClient(player, new SurvivalStatsPayload(true, vanillaDeathPlayTicks(player)));
+        recordHardcoreDeathIfNeeded(data, player);
+        SurvivalStatsSavedData.Snapshot stats = data.deathStats(player.getUUID()).orElseGet(() -> data.stats(player));
+        sendToClient(player, new SurvivalStatsPayload(
+            true,
+            stats.playTicks(),
+            stats.blocksPlaced(),
+            stats.blocksBroken(),
+            stats.distanceCm()
+        ));
     }
 
     public static void handleServerStarted(MinecraftServer server) {
@@ -117,9 +116,6 @@ public final class PickYourBedServer {
     public static void handleServerTick(MinecraftServer server) {
         SurvivalStatsSavedData data = SurvivalStatsSavedData.get(server);
         data.initializeForServer(server);
-        if (!data.modTimerEnabled()) {
-            return;
-        }
 
         boolean changed = false;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -128,6 +124,30 @@ public final class PickYourBedServer {
         }
         if (changed && server.getTickCount() % 100 == 0) {
             data.setDirty();
+        }
+    }
+
+    public static void recordBlockPlaced(ServerPlayer player) {
+        try {
+            SurvivalStatsSavedData.get(player.server).recordBlockPlaced(player);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to record placed block for {}", player.getGameProfile().getName(), exception);
+        }
+    }
+
+    public static void recordBlockBroken(ServerPlayer player) {
+        try {
+            SurvivalStatsSavedData.get(player.server).recordBlockBroken(player);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to record broken block for {}", player.getGameProfile().getName(), exception);
+        }
+    }
+
+    public static void ensureSurvivalStats(ServerPlayer player) {
+        try {
+            SurvivalStatsSavedData.get(player.server).stats(player);
+        } catch (RuntimeException exception) {
+            Constants.LOG.error("Failed to initialize survival stats for {}", player.getGameProfile().getName(), exception);
         }
     }
 
@@ -340,13 +360,6 @@ public final class PickYourBedServer {
             return data.recordDeath(player);
         }
         return false;
-    }
-
-    private static long vanillaDeathPlayTicks(ServerPlayer player) {
-        long playTicks = Math.max(0, player.getStats().getValue(Stats.CUSTOM, Stats.PLAY_TIME));
-        int deaths = Math.max(0, player.getStats().getValue(Stats.CUSTOM, Stats.DEATHS));
-        int timeSinceDeath = Math.max(0, player.getStats().getValue(Stats.CUSTOM, Stats.TIME_SINCE_DEATH));
-        return deaths > 0 ? Math.max(0L, playTicks - timeSinceDeath) : playTicks;
     }
 
     private static void restoreOriginalRespawn(ServerPlayer player) {

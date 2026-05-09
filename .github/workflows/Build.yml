@@ -76,6 +76,45 @@ jobs:
             echo "neoforge_name=$(basename "$NEOFORGE_JAR")"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Validate jar textures
+        env:
+          FABRIC_JAR: ${{ steps.jars.outputs.fabric_jar }}
+          NEOFORGE_JAR: ${{ steps.jars.outputs.neoforge_jar }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import os
+          import sys
+          import zipfile
+
+          png_signature = b"\x89PNG\r\n\x1a\n"
+          failed = False
+
+          for jar_path in (os.environ["FABRIC_JAR"], os.environ["NEOFORGE_JAR"]):
+              with zipfile.ZipFile(jar_path) as jar:
+                  pngs = [
+                      name
+                      for name in jar.namelist()
+                      if name.startswith("assets/pick_your_bed/") and name.endswith(".png")
+                  ]
+
+                  if not pngs:
+                      print(f"{jar_path}: no Pick Your Bed PNG textures found", file=sys.stderr)
+                      failed = True
+                      continue
+
+                  for name in pngs:
+                      data = jar.read(name)
+                      if not data.startswith(png_signature):
+                          print(f"{jar_path}: invalid PNG texture: {name}", file=sys.stderr)
+                          failed = True
+
+          if failed:
+              raise SystemExit(1)
+          PY
+
       - name: Upload built jars
         uses: actions/upload-artifact@v4
         with:

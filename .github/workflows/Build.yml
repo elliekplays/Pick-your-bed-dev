@@ -4,40 +4,41 @@
   run: |
     curl -H "Content-Type: application/json" \
     -X POST \
-    -d "{
-      \"username\": \"Spidey Bot\",
-      \"avatar_url\": \"https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png\",
-      \"embeds\": [{
-        \"title\": \"🚀 Build Complete\",
-        \"color\": 5814783,
+    -d '{
+      "username": "Spidey Bot",
+      "avatar_url": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+      "embeds": [{
+        "title": "🚀 Build Complete",
+        "color": 5814783,
 
-        \"author\": {
-          \"name\": \"${{ github.actor }}\",
-          \"icon_url\": \"https://github.com/${{ github.actor }}.png\"
+        "author": {
+          "name": "${{ github.actor }}",
+          "icon_url": "https://github.com/${{ github.actor }}.png"
         },
 
-        \"fields\": [
+        "fields": [
           {
-            \"name\": \"Branch\",
-            \"value\": \"${{ github.ref_name }}\",
-            \"inline\": true
+            "name": "Branch",
+            "value": "${{ github.ref_name }}",
+            "inline": true
           },
           {
-            \"name\": \"Commit\",
-            \"value\": \"\`${{ github.sha }}\`\",\n            \"inline\": true
+            "name": "Commit",
+            "value": "${{ github.sha }}",
+            "inline": true
           },
           {
-            \"name\": \"Message\",
-            \"value\": \"${{ github.event.head_commit.message }}\",
-            \"inline\": false
+            "name": "Message",
+            "value": "${{ github.event.head_commit.message }}",
+            "inline": false
           }
         ],
 
-        \"footer\": {
-          \"text\": \"GitHub Actions CI\"
+        "footer": {
+          "text": "GitHub Actions CI"
         },
 
-        \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+        "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
       }]
-    }" \
+    }' \
     $WEBHOOK

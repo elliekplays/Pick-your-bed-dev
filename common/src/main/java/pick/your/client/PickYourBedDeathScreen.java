@@ -40,10 +40,14 @@ public class PickYourBedDeathScreen extends Screen {
     private static final int LIST_TITLE_Y_OFFSET = LIST_HEADER_HEIGHT + 8;
     private static final int LIST_ROWS_TOP_OFFSET = LIST_HEADER_HEIGHT + 24;
     private static final int LIST_BOTTOM_PADDING = 10;
-    private static final int EDIT_BUTTON_SIZE = 12;
-    private static final int EDIT_BUTTON_ROW_PADDING = 5;
-    private static final int EDIT_BUTTON_TOP_OFFSET = 5;
-    private static final float ENTRY_TEXT_SCALE = 0.9F;
+    private static final int ENTRY_ROW_HEIGHT = 32;
+    private static final int ENTRY_ROW_STEP = 35;
+    private static final int ENTRY_TEXT_LINE_GAP = 2;
+    private static final int ENTRY_TEXT_VERTICAL_NUDGE = 1;
+    private static final int EDIT_BUTTON_SIZE = 20;
+    private static final int EDIT_BUTTON_ROW_PADDING = 6;
+    private static final int EDIT_BUTTON_TOP_OFFSET = (ENTRY_ROW_HEIGHT - EDIT_BUTTON_SIZE) / 2;
+    private static final float ENTRY_TEXT_SCALE = 1.0F;
     private static final String BROKEN_OR_DESTROYED = "Broken or destroyed";
     private static final String[] HARDCORE_QUOTES = {
         "Well fought. Your next run starts wiser.",
@@ -371,31 +375,38 @@ public class PickYourBedDeathScreen extends Screen {
         RespawnEntryView tooltipEntry = null;
         for (int i = 0; i < visible && i + this.scrollIndex < entries.size(); i++) {
             RespawnEntryView entry = entries.get(i + this.scrollIndex);
-            int rowY = startY + i * 25;
-            boolean rowBoundsHovered = mouseX >= left + 12 && mouseX <= left + width - 12 && mouseY >= rowY && mouseY <= rowY + 22;
+            int rowY = startY + i * ENTRY_ROW_STEP;
+            boolean rowBoundsHovered = mouseX >= left + 12 && mouseX <= left + width - 12 && mouseY >= rowY && mouseY <= rowY + ENTRY_ROW_HEIGHT;
             boolean editHovered = entry.valid() && insideEditButton(mouseX, mouseY, layout, rowY);
             boolean hovered = rowBoundsHovered && !editHovered;
             boolean selected = entry.id() == this.selectedId;
             int rowColor = entry.valid() ? (selected ? SELECTED : hovered ? ROW_HOVER : ROW) : INVALID_ROW;
-            PickYourBedUiTextures.renderListRow(graphics, left + 12, rowY, width - 24, 22, rowColor);
-            graphics.fill(left + 12, rowY, left + 15, rowY + 22, entry.type() == RespawnEntryType.BED ? 0xFFE05B65 : 0xFFB48AF1);
+            PickYourBedUiTextures.renderListRow(graphics, left + 12, rowY, width - 24, ENTRY_ROW_HEIGHT, rowColor);
+            graphics.fill(left + 12, rowY, left + 15, rowY + ENTRY_ROW_HEIGHT, entry.type() == RespawnEntryType.BED ? 0xFFE05B65 : 0xFFB48AF1);
 
             int textColor = entry.valid() ? 0xFFF2F5F7 : 0xFF848B92;
             int subColor = entry.valid() ? 0xFFAAB5BF : 0xFF6F767D;
-            int textMaxWidth = width - 74;
-            int textBlockTop = rowY + Math.max(3, (22 - (this.font.lineHeight * 2 + 1)) / 2 + 2);
+            int textX = left + 22;
+            int textMaxWidth = Math.max(1, editButtonLeft(layout) - textX - 8);
+            int lineAdvance = Math.max(1, Math.round((this.font.lineHeight + ENTRY_TEXT_LINE_GAP) * ENTRY_TEXT_SCALE));
+            int textBlockHeight = Math.round((this.font.lineHeight * 2 + ENTRY_TEXT_LINE_GAP) * ENTRY_TEXT_SCALE);
+            int textBlockTop = rowY + clamp(
+                (ENTRY_ROW_HEIGHT - textBlockHeight) / 2 + ENTRY_TEXT_VERTICAL_NUDGE,
+                2,
+                Math.max(2, ENTRY_ROW_HEIGHT - textBlockHeight - 2)
+            );
             int scaledTextMaxWidth = Math.max(1, Math.round(textMaxWidth / ENTRY_TEXT_SCALE));
-            drawScaledString(graphics, trimToWidth(entry.name(), scaledTextMaxWidth), left + 22, textBlockTop, textColor, ENTRY_TEXT_SCALE);
+            drawScaledString(graphics, trimToWidth(entry.name(), scaledTextMaxWidth), textX, textBlockTop, textColor, ENTRY_TEXT_SCALE);
             String subtitle = entry.type().displayName().getString() + " - " + entry.dimensionText();
             if (!entry.valid()) {
                 subtitle = entry.invalidReason();
             }
-            drawScaledString(graphics, trimToWidth(subtitle, scaledTextMaxWidth), left + 22, textBlockTop + this.font.lineHeight + 1, subColor, ENTRY_TEXT_SCALE);
+            drawScaledString(graphics, trimToWidth(subtitle, scaledTextMaxWidth), textX, textBlockTop + lineAdvance, subColor, ENTRY_TEXT_SCALE);
 
             if (entry.valid()) {
                 PickYourBedUiTextures.renderEditIcon(graphics, editButtonLeft(layout), rowY + EDIT_BUTTON_TOP_OFFSET, editHovered);
             } else {
-                drawWarning(graphics, left + width - 28, rowY + 5);
+                drawWarning(graphics, left + width - 28, rowY + (ENTRY_ROW_HEIGHT - 10) / 2);
             }
 
             if (hovered) {
@@ -405,7 +416,7 @@ public class PickYourBedDeathScreen extends Screen {
 
         if (entries.size() > visible) {
             int barTop = layout.rowsTop;
-            int barHeight = visible * 25 - 3;
+            int barHeight = visible * ENTRY_ROW_STEP - 3;
             int thumbHeight = Math.max(14, barHeight * visible / entries.size());
             int thumbTop = barTop + (barHeight - thumbHeight) * this.scrollIndex / Math.max(1, max);
             graphics.fill(left + width - 7, barTop, left + width - 5, barTop + barHeight, 0x66333A42);
@@ -478,6 +489,11 @@ public class PickYourBedDeathScreen extends Screen {
     }
 
     private void drawScaledString(GuiGraphics graphics, String text, int x, int y, int color, float scale) {
+        if (scale == 1.0F) {
+            graphics.drawString(this.font, text, x, y, color, false);
+            return;
+        }
+
         graphics.pose().pushPose();
         graphics.pose().translate(x, y, 0.0F);
         graphics.pose().scale(scale, scale, 1.0F);
@@ -531,7 +547,12 @@ public class PickYourBedDeathScreen extends Screen {
             return null;
         }
         List<RespawnEntryView> entries = filteredEntries();
-        int row = (mouseY - layout.rowsTop) / 25;
+        int localY = mouseY - layout.rowsTop;
+        int row = localY / ENTRY_ROW_STEP;
+        if (localY % ENTRY_ROW_STEP > ENTRY_ROW_HEIGHT) {
+            return null;
+        }
+
         if (row < 0 || row >= layout.visibleRows) {
             return null;
         }
@@ -544,7 +565,7 @@ public class PickYourBedDeathScreen extends Screen {
         List<RespawnEntryView> entries = filteredEntries();
         for (int i = 0; i < entries.size(); i++) {
             if (entries.get(i).id() == entry.id()) {
-                return layout.rowsTop + (i - this.scrollIndex) * 25;
+                return layout.rowsTop + (i - this.scrollIndex) * ENTRY_ROW_STEP;
             }
         }
         return layout.rowsTop;
@@ -724,7 +745,7 @@ public class PickYourBedDeathScreen extends Screen {
         int panelTop = preferredPanelTop;
         int panelHeight;
         if (availableHeight >= 84) {
-            panelHeight = Math.min(208, availableHeight);
+            panelHeight = Math.min(220, availableHeight);
         } else {
             panelTop = Math.max(8, Math.min(preferredPanelTop, maxButtonTop - 84));
             panelHeight = Math.max(52, maxButtonTop - panelTop - 10);
@@ -733,7 +754,7 @@ public class PickYourBedDeathScreen extends Screen {
         panelHeight = Math.max(52, Math.min(panelHeight, Math.max(52, screenHeight - panelTop - buttonBlockHeight - 20)));
         int rowsTop = panelTop + LIST_ROWS_TOP_OFFSET;
         int rowAreaHeight = panelHeight - LIST_ROWS_TOP_OFFSET - LIST_BOTTOM_PADDING;
-        int visibleRows = rowAreaHeight >= 22 ? Math.max(1, (rowAreaHeight + 3) / 25) : 0;
+        int visibleRows = rowAreaHeight >= ENTRY_ROW_HEIGHT ? Math.max(1, (rowAreaHeight + ENTRY_ROW_STEP - ENTRY_ROW_HEIGHT) / ENTRY_ROW_STEP) : 0;
         int buttonTop = Math.min(maxButtonTop, panelTop + panelHeight + 10);
 
         int primaryButtonWidth;

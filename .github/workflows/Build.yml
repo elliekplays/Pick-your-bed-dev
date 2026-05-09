@@ -10,17 +10,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ─────────────────────────────
+      # Checkout
+      # ─────────────────────────────
       - name: checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # ─────────────────────────────
+      # Java 21 (required for MC 1.21.1)
+      # ─────────────────────────────
       - name: setup java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
+      # ─────────────────────────────
+      # Fix gradlew permissions (IMPORTANT)
+      # ─────────────────────────────
+      - name: make gradlew executable
+        run: chmod +x gradlew
+
+      # ─────────────────────────────
+      # Cache Gradle
+      # ─────────────────────────────
       - name: cache gradle
         uses: actions/cache@v4
         with:
@@ -32,28 +47,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle
 
+      # ─────────────────────────────
+      # Build project
+      # ─────────────────────────────
       - name: build project
         run: ./gradlew build
 
       # ─────────────────────────────
-      # Upload artifacts
+      # Upload Fabric jar
       # ─────────────────────────────
-      - name: upload fabric
+      - name: upload fabric artifact
         uses: actions/upload-artifact@v4
         with:
           name: fabric-mod
           path: fabric/build/libs/*.jar
 
-      - name: upload neoforge
+      # ─────────────────────────────
+      # Upload NeoForge jar
+      # ─────────────────────────────
+      - name: upload neoforge artifact
         uses: actions/upload-artifact@v4
         with:
           name: neoforge-mod
           path: neoforge/build/libs/*.jar
 
       # ─────────────────────────────
-      # Discord (SAFE + HOTLINKED EMBED)
+      # Discord + Jars + Links (SAFE)
       # ─────────────────────────────
-      - name: send discord embed + jars
+      - name: send discord message + jars
         if: success()
         env:
           WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -64,7 +85,6 @@ jobs:
           BRANCH_URL="${REPO}/tree/${{ github.ref_name }}"
           COMMIT_URL="${REPO}/commit/${{ github.sha }}"
 
-          # escape commit message safely (prevents JSON break)
           COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -c 200 | sed 's/"/\\"/g')
 
           echo "Sending Discord embed..."

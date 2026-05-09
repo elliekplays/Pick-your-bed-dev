@@ -163,7 +163,7 @@ public final class PickYourBedServer {
     private static void removeInvalidRespawnsAfterRespawn(ServerPlayer player) {
         try {
             RespawnSavedData data = RespawnSavedData.get(player.server);
-            int removed = data.removeEntries(player.getUUID(), entry -> shouldRemoveAfterRespawn(validate(player.server, entry)));
+            int removed = pruneRemovableRespawns(player, data);
             if (removed > 0) {
                 syncList(player);
             }
@@ -260,46 +260,15 @@ public final class PickYourBedServer {
     }
 
     private static boolean ensureCurrentRespawnKnown(ServerPlayer player) {
-        BlockPos pos = player.getRespawnPosition();
-        if (pos == null) {
+        Optional<RespawnPlacement> placement = currentRespawnPlacement(player);
+        if (placement.isEmpty()) {
             return false;
         }
 
-        ResourceKey<Level> dimension = player.getRespawnDimension();
-        if (dimension == null) {
-            return false;
-        }
-
-        ServerLevel level = player.server.getLevel(dimension);
-        if (level == null) {
-            return false;
-        }
-
-        BlockState state = level.getBlockState(pos);
-        RespawnEntryType type;
-        BlockPos savedPos = pos;
-        if (state.getBlock() instanceof BedBlock) {
-            savedPos = state.getValue(BedBlock.PART) == BedPart.HEAD
-                ? pos
-                : pos.relative(state.getValue(BedBlock.FACING));
-            state = level.getBlockState(savedPos);
-            if (!(state.getBlock() instanceof BedBlock)) {
-                return false;
-            }
-            type = RespawnEntryType.BED;
-        } else if (state.getBlock() instanceof RespawnAnchorBlock) {
-            type = RespawnEntryType.RESPAWN_ANCHOR;
-        } else {
-            return false;
-        }
-
-        RespawnValidation compatibility = validateCompatibility(level, savedPos, state);
-        if (!compatibility.valid()) {
-            return false;
-        }
+        RespawnPlacement current = placement.get();
 
         RespawnSavedData data = RespawnSavedData.get(player.server);
-        Optional<RespawnEntry> entry = addOrUpdateRespawn(player, data, type, level.dimension().location(), savedPos.immutable(), false);
+        Optional<RespawnEntry> entry = addOrUpdateRespawn(player, data, current.type(), current.dimension(), current.pos(), false);
         if (entry.isEmpty()) {
             return false;
         }
@@ -337,7 +306,16 @@ public final class PickYourBedServer {
         }
 
         PickYourBedConfig.Settings config = PickYourBedConfig.get();
-        if (!config.limitsRespawnPoints() || data.entryCount(player.getUUID()) < config.maxRespawnPointsPerPlayer()) {
+        if (!config.limitsRespawnPoints()) {
+            return true;
+        }
+
+        int removed = pruneRemovableRespawns(player, data);
+        if (removed > 0) {
+            syncList(player);
+        }
+
+        if (data.entryCount(player.getUUID()) < config.maxRespawnPointsPerPlayer()) {
             return true;
         }
 
@@ -345,6 +323,10 @@ public final class PickYourBedServer {
             notifyLimitReached(player, type);
         }
         return false;
+    }
+
+    private static int pruneRemovableRespawns(ServerPlayer player, RespawnSavedData data) {
+        return data.removeEntries(player.getUUID(), entry -> shouldRemoveAfterRespawn(validate(player.server, entry)));
     }
 
     private static void notifyLimitReached(ServerPlayer player, RespawnEntryType type) {
@@ -357,19 +339,25 @@ public final class PickYourBedServer {
 
     private static Optional<RespawnChoice> findLastRespawnOrFallback(ServerPlayer player, List<RespawnEntry> entries) {
         List<RespawnEntry> history = RespawnSavedData.get(player.server).respawnHistoryFor(player.getUUID());
-        Optional<RespawnEntry> current = currentRespawnEntry(player, entries);
-        if (current.isPresent()) {
-            RespawnEntry entry = current.get();
-            RespawnValidation validation = validate(player.server, entry);
+        Optional<RespawnPlacement> currentPlacement = currentRespawnPlacement(player);
+        if (currentPlacement.isPresent()) {
+            RespawnPlacement placement = currentPlacement.get();
+            Optional<RespawnEntry> savedCurrent = currentRespawnEntry(placement, entries);
+            RespawnEntry current = savedCurrent.orElseGet(() -> placement.toEntry(player));
+            RespawnValidation validation = validate(player.server, current);
             if (validation.valid()) {
-                return Optional.of(new RespawnChoice(entry, false));
+                return Optional.of(new RespawnChoice(current, false));
             }
 
             boolean obstructedFallback = OBSTRUCTED.equals(validation.reason());
-            return findFallbackAfter(player, history, entry.id())
-                .or(() -> findFallbackAfter(player, entries, entry.id()))
-                .or(() -> findFirstValidExcluding(player, entries, entry.id()))
-                .map(fallback -> new RespawnChoice(fallback, obstructedFallback));
+            Optional<RespawnEntry> fallback = savedCurrent
+                .flatMap(entry -> findFallbackAfter(player, history, entry.id())
+                    .or(() -> findFallbackAfter(player, entries, entry.id()))
+                    .or(() -> findFirstValidExcluding(player, entries, entry.id())))
+                .or(() -> firstValid(history, player))
+                .or(() -> firstValid(entries, player));
+            return fallback
+                .map(entry -> new RespawnChoice(entry, obstructedFallback));
         }
 
         return firstValid(history, player)
@@ -377,44 +365,46 @@ public final class PickYourBedServer {
             .map(entry -> new RespawnChoice(entry, false));
     }
 
-    private static Optional<RespawnEntry> currentRespawnEntry(ServerPlayer player, List<RespawnEntry> entries) {
+    private static Optional<RespawnEntry> currentRespawnEntry(RespawnPlacement placement, List<RespawnEntry> entries) {
+        return entries.stream()
+            .filter(entry -> entry.samePlace(placement.type(), placement.dimension(), placement.pos()))
+            .findFirst();
+    }
+
+    private static Optional<RespawnPlacement> currentRespawnPlacement(ServerPlayer player) {
         BlockPos pos = player.getRespawnPosition();
         ResourceKey<Level> dimension = player.getRespawnDimension();
         if (pos == null || dimension == null) {
             return Optional.empty();
         }
 
-        return entries.stream()
-            .filter(entry -> entry.dimension().equals(dimension.location()))
-            .filter(entry -> matchesRespawnPosition(player.server, entry, pos))
-            .findFirst();
-    }
-
-    private static boolean matchesRespawnPosition(MinecraftServer server, RespawnEntry entry, BlockPos pos) {
-        if (entry.pos().equals(pos)) {
-            return true;
-        }
-        if (entry.type() != RespawnEntryType.BED) {
-            return false;
-        }
-
-        ServerLevel level = server.getLevel(ResourceKey.create(Registries.DIMENSION, entry.dimension()));
+        ServerLevel level = player.server.getLevel(dimension);
         if (level == null) {
-            return false;
+            return Optional.empty();
         }
 
-        BlockState state = level.getBlockState(entry.pos());
-        if (!(state.getBlock() instanceof BedBlock)) {
-            return false;
+        BlockState state = level.getBlockState(pos);
+        RespawnEntryType type;
+        BlockPos savedPos = pos;
+        if (state.getBlock() instanceof BedBlock) {
+            savedPos = state.getValue(BedBlock.PART) == BedPart.HEAD
+                ? pos
+                : pos.relative(state.getValue(BedBlock.FACING));
+            state = level.getBlockState(savedPos);
+            if (!(state.getBlock() instanceof BedBlock)) {
+                return Optional.empty();
+            }
+            type = RespawnEntryType.BED;
+        } else if (state.getBlock() instanceof RespawnAnchorBlock) {
+            type = RespawnEntryType.RESPAWN_ANCHOR;
+        } else {
+            return Optional.empty();
         }
 
-        BlockPos headPos = state.getValue(BedBlock.PART) == BedPart.HEAD
-            ? entry.pos()
-            : entry.pos().relative(state.getValue(BedBlock.FACING));
-        BlockPos footPos = state.getValue(BedBlock.PART) == BedPart.FOOT
-            ? entry.pos()
-            : entry.pos().relative(state.getValue(BedBlock.FACING).getOpposite());
-        return pos.equals(headPos) || pos.equals(footPos);
+        RespawnValidation compatibility = validateCompatibility(level, savedPos, state);
+        return compatibility.valid()
+            ? Optional.of(new RespawnPlacement(type, level.dimension().location(), savedPos.immutable()))
+            : Optional.empty();
     }
 
     private static Optional<RespawnEntry> findFallbackAfter(ServerPlayer player, List<RespawnEntry> entries, long entryId) {
@@ -555,5 +545,11 @@ public final class PickYourBedServer {
     }
 
     private record RespawnChoice(RespawnEntry entry, boolean obstructedFallback) {
+    }
+
+    private record RespawnPlacement(RespawnEntryType type, ResourceLocation dimension, BlockPos pos) {
+        RespawnEntry toEntry(ServerPlayer player) {
+            return new RespawnEntry(-1L, player.getUUID(), this.type, this.dimension, this.pos, RespawnEntry.fallbackName(this.type));
+        }
     }
 }

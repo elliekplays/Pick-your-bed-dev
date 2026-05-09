@@ -54,11 +54,17 @@ public final class PickYourBedConfig {
         String limitEnabledValue = properties.getProperty(KEY_LIMIT_ENABLED);
         if (limitEnabledValue == null) {
             changed = true;
-        } else if ("true".equalsIgnoreCase(limitEnabledValue) || "false".equalsIgnoreCase(limitEnabledValue)) {
-            limitEnabled = Boolean.parseBoolean(limitEnabledValue);
         } else {
-            Constants.LOG.warn("Invalid {} value '{}' in {}; using {}", KEY_LIMIT_ENABLED, limitEnabledValue, FILE_NAME, DEFAULT_LIMIT_ENABLED);
-            changed = true;
+            String trimmedLimitEnabled = limitEnabledValue.trim();
+            if ("true".equalsIgnoreCase(trimmedLimitEnabled) || "false".equalsIgnoreCase(trimmedLimitEnabled)) {
+                limitEnabled = Boolean.parseBoolean(trimmedLimitEnabled);
+                if (!trimmedLimitEnabled.equals(limitEnabledValue)) {
+                    changed = true;
+                }
+            } else {
+                Constants.LOG.warn("Invalid {} value '{}' in {}; using {}", KEY_LIMIT_ENABLED, limitEnabledValue, FILE_NAME, DEFAULT_LIMIT_ENABLED);
+                changed = true;
+            }
         }
 
         int maxRespawnPoints = DEFAULT_MAX_RESPAWN_POINTS;

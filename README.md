@@ -127,7 +127,7 @@ Small fixes and improvements are welcome. For bug reports, include the Minecraft
 ![Discord](https://img.shields.io/badge/Discord-elliekplays-5865F2?style=for-the-badge&logo=discord&logoColor=white)
 ![Email](https://img.shields.io/badge/Email-soon-EA4335?style=for-the-badge&logo=gmail&logoColor=white)
 
-For bug reports or support, include your Minecraft version, loader, mod version, installed compatibility mods, and a clear way to reproduce the issue.
+For **bug** reports or support, include your Minecraft version, loader, mod version, installed compatibility mods, and a clear way to reproduce the issue.
 
 ## License
 

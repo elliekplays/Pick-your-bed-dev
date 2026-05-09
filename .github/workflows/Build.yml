@@ -1,70 +1,116 @@
-- name: Send build + upload jars to Discord
-  if: success()
-  env:
-    WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-  run: |
-    set -e
+name: build
 
-    echo "Sending Discord embed..."
+on:
+  push:
+  pull_request:
 
-    # ─────────────────────────────
-    # 1) Discord embed message
-    # ─────────────────────────────
-    curl -H "Content-Type: application/json" \
-    -X POST \
-    -d "{
-      \"username\": \"Spidey Bot\",
-      \"embeds\": [{
-        \"title\": \"🚀 Build Complete\",
-        \"color\": 5814783,
-        \"author\": {
-          \"name\": \"By: ${{ github.actor }}\",
-          \"icon_url\": \"https://github.com/${{ github.actor }}.png\"
-        },
-        \"fields\": [
-          {
-            \"name\": \"Branch\",
-            \"value\": \"${{ github.ref_name }}\",
-            \"inline\": true
-          },
-          {
-            \"name\": \"Commit\",
-            \"value\": \"\`${{ github.sha }}\`\",\n            \"inline\": true
-          },
-          {
-            \"name\": \"Message\",
-            \"value\": \"${{ github.event.head_commit.message }}\",
-            \"inline\": false
-          }
-        ],
-        \"footer\": {
-          \"text\": \"GitHub Actions CI\"
-        },
-        \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
-      }]
-    }" \
-    $WEBHOOK
+jobs:
+  build:
+    if: "!startsWith(github.event.head_commit.message, '[skip]')"
+    runs-on: ubuntu-latest
 
-    echo "Uploading Fabric jar..."
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    # ─────────────────────────────
-    # 2) Upload Fabric jar
-    # ─────────────────────────────
-    FABRIC_JAR=$(ls fabric/build/libs/*.jar | head -n 1)
-    if [ -f "$FABRIC_JAR" ]; then
-      curl -F "file=@$FABRIC_JAR" $WEBHOOK
-    else
-      echo "No Fabric jar found!"
-    fi
+      - name: setup java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
 
-    echo "Uploading NeoForge jar..."
+      - name: cache gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.gradle/loom-cache
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle
 
-    # ─────────────────────────────
-    # 3) Upload NeoForge jar
-    # ─────────────────────────────
-    NEOFORGE_JAR=$(ls neoforge/build/libs/*.jar | head -n 1)
-    if [ -f "$NEOFORGE_JAR" ]; then
-      curl -F "file=@$NEOFORGE_JAR" $WEBHOOK
-    else
-      echo "No NeoForge jar found!"
-    fi
+      - name: make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: build project
+        run: ./gradlew build
+
+      # ─────────────────────────────
+      # Upload Fabric jar
+      # ─────────────────────────────
+      - name: upload fabric artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-mod
+          path: fabric/build/libs/*.jar
+
+      # ─────────────────────────────
+      # Upload NeoForge jar
+      # ─────────────────────────────
+      - name: upload neoforge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neoforge-mod
+          path: neoforge/build/libs/*.jar
+
+      # ─────────────────────────────
+      # Discord notification + file upload
+      # ─────────────────────────────
+      - name: send discord message + jars
+        if: success()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          set -e
+
+          echo "Sending Discord embed..."
+
+          curl -H "Content-Type: application/json" \
+          -X POST \
+          -d "{
+            \"username\": \"Spidey Bot\",
+            \"embeds\": [{
+              \"title\": \"🚀 Build Complete\",
+              \"color\": 5814783,
+              \"author\": {
+                \"name\": \"By: ${{ github.actor }}\",
+                \"icon_url\": \"https://github.com/${{ github.actor }}.png\"
+              },
+              \"fields\": [
+                {
+                  \"name\": \"Branch\",
+                  \"value\": \"${{ github.ref_name }}\",
+                  \"inline\": true
+                },
+                {
+                  \"name\": \"Commit\",
+                  \"value\": \"\`${{ github.sha }}\`\",\n                  \"inline\": true
+                },
+                {
+                  \"name\": \"Message\",
+                  \"value\": \"${{ github.event.head_commit.message }}\",
+                  \"inline\": false
+                }
+              ],
+              \"footer\": {
+                \"text\": \"GitHub Actions CI\"
+              },
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+            }]
+          }" \
+          $WEBHOOK
+
+          echo "Uploading Fabric jar..."
+          FABRIC_JAR=$(ls fabric/build/libs/*.jar | head -n 1)
+          if [ -f "$FABRIC_JAR" ]; then
+            curl -F "file=@$FABRIC_JAR" $WEBHOOK
+          fi
+
+          echo "Uploading NeoForge jar..."
+          NEOFORGE_JAR=$(ls neoforge/build/libs/*.jar | head -n 1)
+          if [ -f "$NEOFORGE_JAR" ]; then
+            curl -F "file=@$NEOFORGE_JAR" $WEBHOOK
+          fi
